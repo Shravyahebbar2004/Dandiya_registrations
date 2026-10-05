@@ -45,20 +45,12 @@ export default function RegisterPage({
   });
 
   const [participants, setParticipants] = useState<any[]>([]);
-  const [additionalParticipants, setAdditionalParticipants] = useState<string[]>([]);
+  const [otherParticipantsText, setOtherParticipantsText] = useState('');
 
-  useEffect(() => {
-    const extraCount = Math.max(0, allowedEntries - 1);
-    setAdditionalParticipants(prev => {
-      const next = [...prev];
-      if (next.length < extraCount) {
-        while (next.length < extraCount) next.push('');
-      } else if (next.length > extraCount) {
-        return next.slice(0, extraCount);
-      }
-      return next;
-    });
-  }, [allowedEntries]);
+  const otherAttendees = otherParticipantsText
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
 
   const [step, setStep] = useState(1);
 
@@ -466,11 +458,9 @@ export default function RegisterPage({
         return;
       }
       if (allowedEntries > 1) {
-        for (let i = 0; i < allowedEntries - 1; i++) {
-          if (!additionalParticipants[i] || !additionalParticipants[i].trim()) {
-            alert(`Please enter Full Name for Ticket #${i + 2}! Filling names of all participants is mandatory.`);
-            return;
-          }
+        if (otherAttendees.length < allowedEntries - 1) {
+          alert(`Please enter all ${allowedEntries - 1} other participant names separated by commas (e.g. a, b, c)! Currently entered: ${otherAttendees.length}/${allowedEntries - 1}`);
+          return;
         }
       }
     }
@@ -527,7 +517,6 @@ export default function RegisterPage({
         }
       }
 
-      const otherAttendees = additionalParticipants.map(n => n.trim()).filter(Boolean);
       const otherAttendeesStr = otherAttendees.join(', ');
       const combinedFullName = (!isMarathon && otherAttendeesStr)
         ? `${formData.full_name.trim()} (+${otherAttendeesStr})`
@@ -621,7 +610,6 @@ export default function RegisterPage({
         }
       }
 
-      const otherAttendees = additionalParticipants.map(n => n.trim()).filter(Boolean);
       const otherAttendeesStr = otherAttendees.join(', ');
       const combinedFullName = (!isMarathon && otherAttendeesStr)
         ? `${formData.full_name.trim()} (+${otherAttendeesStr})`
@@ -1450,39 +1438,60 @@ export default function RegisterPage({
               </>
             )}
 
-            {/* OTHER TICKET HOLDERS (MANDATORY IF TICKETS > 1) */}
+            {/* OTHER TICKET HOLDERS (COMMA SEPARATED: a, b, c) */}
             {allowedEntries > 1 && !isMarathon && (
               <div className="pt-4 border-t border-white/10 space-y-4">
                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
-                  <h3 className="text-sm font-bold text-amber-300 flex items-center gap-2">
-                    <span>👥</span> Other Ticket Holders ({allowedEntries - 1} Remaining)
-                  </h3>
-                  <p className="text-xs text-gray-300 mt-1">
-                    Ticket #1 is for <strong className="text-white">{formData.full_name || 'Primary Registrant'}</strong>. Filling the full names of all other ticket holders is mandatory.
+                  <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+                    <h3 className="text-sm font-bold text-amber-300 flex items-center gap-2">
+                      <span>👥</span> Other Ticket Holders ({allowedEntries - 1} Names Required)
+                    </h3>
+                    <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${
+                      otherAttendees.length >= allowedEntries - 1
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                        : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                    }`}>
+                      {otherAttendees.length} of {allowedEntries - 1} Entered
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-300">
+                    Ticket #1 is for <strong className="text-white">{formData.full_name || 'Primary Registrant'}</strong>. Please enter the remaining <strong className="text-white">{allowedEntries - 1}</strong> participant names separated by commas (e.g. <span className="text-amber-200 font-mono">Rahul, Sneha, Amit</span>).
                   </p>
                 </div>
 
-                <div className="space-y-3">
-                  {Array.from({ length: allowedEntries - 1 }).map((_, idx) => (
-                    <div key={idx}>
-                      <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
-                        Ticket #{idx + 2} Holder Full Name <span className="text-rose-400">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        placeholder={`Enter Full Name for Ticket #${idx + 2}`}
-                        value={additionalParticipants[idx] || ''}
-                        onChange={(e) => {
-                          const updated = [...additionalParticipants];
-                          updated[idx] = e.target.value;
-                          setAdditionalParticipants(updated);
-                        }}
-                        required
-                        className="w-full p-4 rounded-2xl bg-black/40 border border-white/10 text-white font-medium focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition text-sm"
-                      />
-                    </div>
-                  ))}
+                <div>
+                  <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
+                    Other Participants' Names (Separated by Commas: a, b, c) <span className="text-rose-400">*</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Enter names separated by commas: e.g. Rahul Sharma, Priya Patel, Amit Verma"
+                    value={otherParticipantsText}
+                    onChange={(e) => setOtherParticipantsText(e.target.value)}
+                    required
+                    className="w-full p-4 rounded-2xl bg-black/40 border border-white/10 text-white font-medium focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition text-sm resize-none"
+                  />
                 </div>
+
+                {/* LIVE PREVIEW OF ENTERED NAMES */}
+                {otherAttendees.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
+                      Parsed Ticket Holders:
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {otherAttendees.map((name, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/5 border border-white/15 text-xs text-gray-200"
+                        >
+                          <span className="text-amber-400 font-bold">Ticket #{idx + 2}:</span>
+                          <span>{name}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
