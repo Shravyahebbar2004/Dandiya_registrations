@@ -328,19 +328,6 @@ export default function CreateEventPage() {
         formData.whatsapp_link
       );
 
-      data.append('slab1_solo_price', formData.slab1_solo_price);
-      data.append('slab1_couple_price', formData.slab1_couple_price);
-      data.append('slab1_group_price', formData.slab1_group_price);
-      data.append('slab1_deadline', formData.slab1_deadline);
-      data.append('slab2_solo_price', formData.slab2_solo_price);
-      data.append('slab2_couple_price', formData.slab2_couple_price);
-      data.append('slab2_group_price', formData.slab2_group_price);
-      data.append('slab2_deadline', formData.slab2_deadline);
-      data.append('slab3_solo_price', formData.slab3_solo_price);
-      data.append('slab3_couple_price', formData.slab3_couple_price);
-      data.append('slab3_group_price', formData.slab3_group_price);
-      data.append('slab3_deadline', formData.slab3_deadline);
-
       data.append(
         'feature1_title',
         formData.feature1_title
@@ -388,47 +375,47 @@ export default function CreateEventPage() {
           type: 'dandiya_tiered',
           ...dandiyaPricing
         }));
-        data.set('slab1_solo_price', dandiyaPricing.slab1.price_1_4);
-        data.set('slab1_couple_price', String(Number(dandiyaPricing.slab1.price_1_4) * 2));
-        data.set('slab1_group_price', String(Number(dandiyaPricing.slab1.price_5_9) * 4));
-        data.set('slab1_deadline', dandiyaPricing.slab1.deadline);
-        data.set('slab2_solo_price', dandiyaPricing.slab2.price_1_4);
-        data.set('slab2_couple_price', String(Number(dandiyaPricing.slab2.price_1_4) * 2));
-        data.set('slab2_group_price', String(Number(dandiyaPricing.slab2.price_5_9) * 4));
-        data.set('slab2_deadline', dandiyaPricing.slab2.deadline || formData.slab2_deadline);
+        data.append('slab1_solo_price', dandiyaPricing.slab1.price_1_4 || '');
+        data.append('slab1_couple_price', String(Number(dandiyaPricing.slab1.price_1_4 || 0) * 2));
+        data.append('slab1_group_price', String(Number(dandiyaPricing.slab1.price_5_9 || 0) * 4));
+        data.append('slab1_deadline', dandiyaPricing.slab1.deadline || '');
+        data.append('slab2_solo_price', dandiyaPricing.slab2.price_1_4 || '');
+        data.append('slab2_couple_price', String(Number(dandiyaPricing.slab2.price_1_4 || 0) * 2));
+        data.append('slab2_group_price', String(Number(dandiyaPricing.slab2.price_5_9 || 0) * 4));
+        data.append('slab2_deadline', dandiyaPricing.slab2.deadline || formData.slab2_deadline || '');
+        data.append('slab3_solo_price', dandiyaPricing.slab3?.price_1_4 || '');
+        data.append('slab3_couple_price', String(Number(dandiyaPricing.slab3?.price_1_4 || 0) * 2));
+        data.append('slab3_group_price', String(Number(dandiyaPricing.slab3?.price_5_9 || 0) * 4));
+        data.append('slab3_deadline', dandiyaPricing.slab3?.deadline || '');
       } else {
         data.append('custom_pricing', JSON.stringify(customPricing));
+        data.append('slab1_solo_price', formData.slab1_solo_price);
+        data.append('slab1_couple_price', formData.slab1_couple_price);
+        data.append('slab1_group_price', formData.slab1_group_price);
+        data.append('slab1_deadline', formData.slab1_deadline);
+        data.append('slab2_solo_price', formData.slab2_solo_price);
+        data.append('slab2_couple_price', formData.slab2_couple_price);
+        data.append('slab2_group_price', formData.slab2_group_price);
+        data.append('slab2_deadline', formData.slab2_deadline);
+        data.append('slab3_solo_price', formData.slab3_solo_price);
+        data.append('slab3_couple_price', formData.slab3_couple_price);
+        data.append('slab3_group_price', formData.slab3_group_price);
+        data.append('slab3_deadline', formData.slab3_deadline);
       }
 
       data.append('coupons', JSON.stringify(partnerCoupons));
 
       if (bannerFile) {
-
         data.append(
           'banner',
           bannerFile
         );
-
       }
 
       const response = await axios.post(
-
-  `${process.env.NEXT_PUBLIC_API_URL}/api/create-event`,
-
-  data,
-
-  {
-
-    headers: {
-
-      'Content-Type':
-        'multipart/form-data'
-
-    }
-
-  }
-
-);
+        `${process.env.NEXT_PUBLIC_API_URL}/api/create-event`,
+        data
+      );
 
 console.log(response.data);
 
@@ -469,9 +456,10 @@ router.push(
       console.log(error);
 
       if (error.response && error.response.data && error.response.data.message) {
-        alert(error.response.data.message);
+        const detail = error.response.data.detail ? ` (${error.response.data.detail})` : '';
+        alert(`${error.response.data.message}${detail}`);
       } else {
-        alert('Event creation failed. Please try again.');
+        alert('Event creation failed. Please check form inputs and try again.');
       }
 
     } finally {
