@@ -743,7 +743,7 @@ export default function RegisterPage({
   }
 
   return (
-    <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 md:p-10">
+    <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-3 sm:p-6 md:p-10">
       {isAdminMode && (
         <div className="w-full max-w-3xl bg-amber-500/20 border border-amber-500/40 rounded-2xl p-4 mb-6 text-amber-200 flex items-center justify-between shadow-lg">
           <div className="flex items-center gap-3">
@@ -1163,7 +1163,7 @@ export default function RegisterPage({
       ) : (
       <form
         onSubmit={handleSubmit}
-        className="bg-white/5 border border-white/10 backdrop-blur-xl rounded-3xl p-5 sm:p-10 w-full max-w-2xl shadow-2xl"
+        className="bg-white/5 border border-white/10 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-8 md:p-10 w-full max-w-2xl shadow-2xl overflow-hidden"
       >
         {/* HEADER */}
         <div className="text-center sm:text-left mb-8">
@@ -1506,71 +1506,74 @@ export default function RegisterPage({
           const upiString = `upi://pay?pa=${upiPayeeId}&pn=${encodeURIComponent(upiPayeeName)}&am=${totalAmount}&cu=INR`;
 
           return (
-            <div className="bg-white text-black rounded-3xl p-6 sm:p-8 mb-8 text-center shadow-2xl border border-gray-200">
-              <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-100 text-emerald-900 text-xs font-black uppercase tracking-wider mb-3 border border-emerald-300">
+            <div className="bg-white text-black rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 md:p-8 mb-6 sm:mb-8 text-center shadow-2xl border border-gray-200 max-w-full overflow-hidden">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 text-[10px] sm:text-xs font-black uppercase tracking-wider mb-2.5 sm:mb-3 border border-emerald-300">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 Dynamic UPI Payment • Zero Gateway Fees
               </div>
-              <h3 className="text-2xl sm:text-3xl font-black text-gray-950 mb-1">
+              <h3 className="text-xl sm:text-3xl font-black text-gray-950 mb-1">
                 Scan to Pay ₹{totalAmount}
               </h3>
-              <p className="text-gray-600 text-xs sm:text-sm mb-5 max-w-md mx-auto">
+              <p className="text-gray-600 text-xs sm:text-sm mb-4 sm:mb-5 max-w-md mx-auto px-1">
                 Scan using any UPI App (Google Pay, PhonePe, Paytm, BHIM, Cred). The exact amount is automatically locked so you don't need to enter it manually.
               </p>
 
-              {/* LOCAL CANVAS QR CODE (NO 3RD PARTY APIS) */}
-              <div className="inline-block p-4 sm:p-5 bg-white rounded-3xl border-2 border-gray-200 shadow-xl mb-4">
-                <QRCodeCanvas
-                  value={upiString}
-                  size={230}
-                  level="H"
-                  includeMargin={true}
-                  className="mx-auto rounded-xl"
-                />
-                <div className="mt-2.5 flex items-center justify-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full text-xs font-black text-amber-900">
+              {/* LOCAL CANVAS QR CODE (RESPONSIVE & NEVER OVERFLOWS) */}
+              <div className="inline-block p-2.5 sm:p-4 bg-white rounded-2xl sm:rounded-3xl border-2 border-gray-200 shadow-md mb-4 max-w-full">
+                <div className="w-[170px] h-[170px] sm:w-[220px] sm:h-[220px] mx-auto flex items-center justify-center">
+                  <QRCodeCanvas
+                    value={upiString}
+                    size={220}
+                    level="H"
+                    includeMargin={false}
+                    style={{ width: '100%', height: '100%', maxWidth: '220px', maxHeight: '220px' }}
+                    className="rounded-lg sm:rounded-xl block"
+                  />
+                </div>
+                <div className="mt-2 inline-flex items-center justify-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full text-[11px] sm:text-xs font-black text-amber-900">
                   <span>🔒</span> Amount Locked: ₹{totalAmount}
                 </div>
               </div>
 
               {/* MOBILE TAP-TO-PAY BUTTON */}
-              <div className="max-w-sm mx-auto mb-5">
+              <div className="w-full max-w-sm mx-auto mb-4 sm:mb-5 px-1">
                 <a
                   href={upiString}
-                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 text-white font-black py-3.5 px-6 rounded-2xl shadow-lg transition active:scale-95 text-sm sm:text-base"
+                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 text-white font-black py-3 px-4 sm:py-3.5 sm:px-6 rounded-xl sm:rounded-2xl shadow-lg transition active:scale-95 text-xs sm:text-base text-center"
                 >
                   <span>📱</span> Tap to Pay ₹{totalAmount} via UPI App
                 </a>
-                <p className="text-[11px] text-gray-500 mt-1.5">
-                  (On phone: opens Google Pay, PhonePe, or Paytm with payee & amount pre-filled)
+                <p className="text-[10px] sm:text-[11px] text-gray-500 mt-1.5">
+                  (On mobile: opens Google Pay, PhonePe, or Paytm with payee & amount pre-filled)
                 </p>
               </div>
 
               {/* PAYMENT DETAILS */}
-              <div className="p-4 sm:p-5 bg-gray-50 rounded-2xl border border-gray-200 max-w-md mx-auto text-left space-y-2.5 text-xs sm:text-sm">
-                <div className="flex justify-between items-center pb-2 border-b border-gray-200">
-                  <span className="font-bold text-gray-500 uppercase text-[11px]">Payee Display Name</span>
-                  <span className="font-black text-gray-900">{upiPayeeName}</span>
+              <div className="p-3 sm:p-5 bg-gray-50 rounded-2xl border border-gray-200 max-w-md mx-auto text-left space-y-2 text-xs sm:text-sm">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5 sm:gap-2 pb-2 border-b border-gray-200">
+                  <span className="font-bold text-gray-500 uppercase text-[10px] sm:text-[11px]">Payee Display Name</span>
+                  <span className="font-black text-gray-900 text-xs sm:text-sm">{upiPayeeName}</span>
                 </div>
-                <div className="flex justify-between items-center pb-2 border-b border-gray-200">
-                  <span className="font-bold text-gray-500 uppercase text-[11px]">UPI ID</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-blue-700 select-all">{upiPayeeId}</span>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 sm:gap-2 pb-2 border-b border-gray-200">
+                  <span className="font-bold text-gray-500 uppercase text-[10px] sm:text-[11px]">UPI ID</span>
+                  <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
+                    <span className="font-mono font-bold text-blue-700 text-xs sm:text-sm select-all break-all">{upiPayeeId}</span>
                     <button
                       type="button"
                       onClick={handleCopyUpi}
-                      className="px-2.5 py-1 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition active:scale-95 shadow-sm"
+                      className="px-2.5 py-1 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition active:scale-95 shadow-sm shrink-0"
                     >
                       {copiedUpi ? 'Copied! ✓' : 'Copy'}
                     </button>
                   </div>
                 </div>
-                <div className="flex justify-between items-center pb-2 border-b border-gray-200">
-                  <span className="font-bold text-gray-500 uppercase text-[11px]">Bank Account Name</span>
-                  <span className="font-bold text-gray-800">H GIRISH PRASAD (Canara Bank)</span>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5 sm:gap-2 pb-2 border-b border-gray-200">
+                  <span className="font-bold text-gray-500 uppercase text-[10px] sm:text-[11px]">Bank Account Name</span>
+                  <span className="font-bold text-gray-800 text-xs sm:text-sm">H GIRISH PRASAD (Canara Bank)</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-gray-500 uppercase text-[11px]">Total Cart Amount</span>
-                  <span className="font-black text-emerald-600 text-lg sm:text-xl">₹{totalAmount}</span>
+                <div className="flex justify-between items-center pt-0.5">
+                  <span className="font-bold text-gray-500 uppercase text-[10px] sm:text-[11px]">Total Cart Amount</span>
+                  <span className="font-black text-emerald-600 text-base sm:text-xl">₹{totalAmount}</span>
                 </div>
               </div>
             </div>
@@ -1578,9 +1581,9 @@ export default function RegisterPage({
         })()}
 
         {/* MANDATORY CHECKOUT VERIFICATION FIELDS RIGHT UNDER QR */}
-        <div className="bg-white/5 border border-white/10 rounded-3xl p-6 sm:p-8 mb-8 text-left space-y-6">
+        <div className="bg-white/5 border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-7 md:p-8 mb-8 text-left space-y-5 sm:space-y-6">
           <div className="border-b border-white/10 pb-3">
-            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+            <h3 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
               <span>📝</span> Payment Confirmation Details
             </h3>
             <p className="text-xs text-gray-400 mt-1">
@@ -1606,7 +1609,7 @@ export default function RegisterPage({
               onChange={handleChange}
               required
               maxLength={25}
-              className="w-full p-4 rounded-2xl bg-black/40 border border-white/10 text-white font-mono tracking-wider focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition placeholder:text-gray-500"
+              className="w-full p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-black/40 border border-white/10 text-white font-mono text-sm tracking-wider focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition placeholder:text-gray-500"
             />
             <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1.5">
               <span>💡</span> You can copy the 12-digit UTR or Transaction ID from your payment success screen in GPay, PhonePe, Paytm, or BHIM.
@@ -1628,10 +1631,10 @@ export default function RegisterPage({
               accept="image/*"
               onChange={(e) => setPaymentProof(e.target.files?.[0] || null)}
               required
-              className="w-full text-gray-300 file:mr-4 file:py-3.5 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-amber-500 file:text-black hover:file:bg-amber-400 transition cursor-pointer bg-black/40 rounded-2xl border border-white/10 p-3"
+              className="w-full text-gray-300 file:mr-3 sm:file:mr-4 file:py-2.5 sm:file:py-3.5 file:px-4 sm:file:px-6 file:rounded-xl file:border-0 file:text-xs sm:file:text-sm file:font-bold file:bg-amber-500 file:text-black hover:file:bg-amber-400 transition cursor-pointer bg-black/40 rounded-xl sm:rounded-2xl border border-white/10 p-2.5 sm:p-3"
             />
             {paymentProof && (
-              <div className="mt-3 p-3 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-3">
+              <div className="mt-3 p-3 bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl flex items-center gap-3">
                 <span className="text-xl">📎</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-white truncate">{paymentProof.name}</p>
