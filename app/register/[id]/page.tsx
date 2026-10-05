@@ -4,6 +4,7 @@ import { useEffect, useState, use } from 'react';
 import axios from 'axios';
 import Link from 'next/link';
 import { ShieldCheck } from 'lucide-react';
+import { QRCodeCanvas } from 'qrcode.react';
 
 export default function RegisterPage({
   params
@@ -26,6 +27,7 @@ export default function RegisterPage({
     full_name: '',
     email: '',
     phone_number: '',
+    utr: '',
     emergency_contact_name: '',
     emergency_contact: '',
     blood_group: '',
@@ -462,6 +464,12 @@ export default function RegisterPage({
         return;
       }
 
+      if (!formData.utr || formData.utr.trim().length < 6) {
+        alert("Please enter your 12-digit UPI UTR / Transaction Reference Number!");
+        setSubmitting(false);
+        return;
+      }
+
       if (!paymentProof) {
         alert("Payment screenshot required!");
         setSubmitting(false);
@@ -473,6 +481,7 @@ export default function RegisterPage({
       draftData.append('full_name', formData.full_name || (isMarathon && participants.length > 0 ? participants[0].full_name : 'Group Purchaser'));
       draftData.append('email', formData.email.trim());
       draftData.append('phone_number', parsePhone(formData.phone_number));
+      draftData.append('utr', formData.utr.trim());
       draftData.append('emergency_contact_name', isMarathon ? formData.emergency_contact_name : '');
       draftData.append('emergency_contact', isMarathon ? parsePhone(formData.emergency_contact) : '');
       draftData.append('blood_group', isMarathon ? (formData.blood_group || '') : '');
@@ -545,6 +554,7 @@ export default function RegisterPage({
       submitData.append('full_name', formData.full_name || (isMarathon && participants.length > 0 ? participants[0].full_name : 'Group Purchaser'));
       submitData.append('email', formData.email.trim());
       submitData.append('phone_number', parsePhone(formData.phone_number));
+      submitData.append('utr', formData.utr.trim());
       submitData.append('emergency_contact_name', isMarathon ? formData.emergency_contact_name : '');
       submitData.append('emergency_contact', isMarathon ? parsePhone(formData.emergency_contact) : '');
       submitData.append('blood_group', isMarathon ? (formData.blood_group || '') : '');
@@ -1489,79 +1499,154 @@ export default function RegisterPage({
           </div>
         </div>
 
-        {/* OFFICIAL CANARA BANK PAYMENT QR */}
-        <div className="bg-white text-black rounded-3xl p-6 sm:p-8 mb-8 text-center shadow-2xl border border-gray-200">
-          <div className="inline-block px-3 py-1 rounded-full bg-blue-100 text-blue-900 text-xs font-black uppercase tracking-wider mb-3">
-            Official Payment Gateway
-          </div>
-          <h3 className="text-2xl font-black text-blue-950 mb-1">
-            Canara Bank UPI Payment QR
-          </h3>
-          <p className="text-gray-600 text-xs sm:text-sm mb-4">
-            Scan using any UPI app (Google Pay, PhonePe, Paytm, BHIM, Cred)
-          </p>
+        {/* OFFICIAL DYNAMIC LOCAL UPI PAYMENT QR */}
+        {(() => {
+          const upiPayeeId = 'anirudha26hindupur@cnrb';
+          const upiPayeeName = 'Dandiya Nights 12th Edition';
+          const upiString = `upi://pay?pa=${upiPayeeId}&pn=${encodeURIComponent(upiPayeeName)}&am=${totalAmount}&cu=INR`;
 
-          <div className="max-w-[280px] mx-auto bg-white p-3 rounded-2xl border-2 border-gray-200 shadow-md">
-            <img
-              src="/payment-qr.jpg"
-              alt="Canara Bank UPI Payment QR"
-              className="mx-auto rounded-xl w-full h-auto object-contain"
-            />
-          </div>
+          return (
+            <div className="bg-white text-black rounded-3xl p-6 sm:p-8 mb-8 text-center shadow-2xl border border-gray-200">
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-100 text-emerald-900 text-xs font-black uppercase tracking-wider mb-3 border border-emerald-300">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Dynamic UPI Payment • Zero Gateway Fees
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-black text-gray-950 mb-1">
+                Scan to Pay ₹{totalAmount}
+              </h3>
+              <p className="text-gray-600 text-xs sm:text-sm mb-5 max-w-md mx-auto">
+                Scan using any UPI App (Google Pay, PhonePe, Paytm, BHIM, Cred). The exact amount is automatically locked so you don't need to enter it manually.
+              </p>
 
-          <div className="mt-5 p-4 bg-gray-50 rounded-2xl border border-gray-200 max-w-md mx-auto text-left">
-            <div className="flex justify-between items-center mb-2 pb-2 border-b border-gray-200">
-              <span className="text-xs font-bold text-gray-500 uppercase">UPI ID</span>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-black text-gray-900 select-all font-mono">
-                  anirudha26hindupur@cnrb
-                </span>
-                <button
-                  type="button"
-                  onClick={handleCopyUpi}
-                  className="px-2.5 py-1 text-xs font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition active:scale-95"
+              {/* LOCAL CANVAS QR CODE (NO 3RD PARTY APIS) */}
+              <div className="inline-block p-4 sm:p-5 bg-white rounded-3xl border-2 border-gray-200 shadow-xl mb-4">
+                <QRCodeCanvas
+                  value={upiString}
+                  size={230}
+                  level="H"
+                  includeMargin={true}
+                  className="mx-auto rounded-xl"
+                />
+                <div className="mt-2.5 flex items-center justify-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full text-xs font-black text-amber-900">
+                  <span>🔒</span> Amount Locked: ₹{totalAmount}
+                </div>
+              </div>
+
+              {/* MOBILE TAP-TO-PAY BUTTON */}
+              <div className="max-w-sm mx-auto mb-5">
+                <a
+                  href={upiString}
+                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 text-white font-black py-3.5 px-6 rounded-2xl shadow-lg transition active:scale-95 text-sm sm:text-base"
                 >
-                  {copiedUpi ? 'Copied! ✓' : 'Copy'}
-                </button>
+                  <span>📱</span> Tap to Pay ₹{totalAmount} via UPI App
+                </a>
+                <p className="text-[11px] text-gray-500 mt-1.5">
+                  (On phone: opens Google Pay, PhonePe, or Paytm with payee & amount pre-filled)
+                </p>
+              </div>
+
+              {/* PAYMENT DETAILS */}
+              <div className="p-4 sm:p-5 bg-gray-50 rounded-2xl border border-gray-200 max-w-md mx-auto text-left space-y-2.5 text-xs sm:text-sm">
+                <div className="flex justify-between items-center pb-2 border-b border-gray-200">
+                  <span className="font-bold text-gray-500 uppercase text-[11px]">Payee Display Name</span>
+                  <span className="font-black text-gray-900">{upiPayeeName}</span>
+                </div>
+                <div className="flex justify-between items-center pb-2 border-b border-gray-200">
+                  <span className="font-bold text-gray-500 uppercase text-[11px]">UPI ID</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-blue-700 select-all">{upiPayeeId}</span>
+                    <button
+                      type="button"
+                      onClick={handleCopyUpi}
+                      className="px-2.5 py-1 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition active:scale-95 shadow-sm"
+                    >
+                      {copiedUpi ? 'Copied! ✓' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center pb-2 border-b border-gray-200">
+                  <span className="font-bold text-gray-500 uppercase text-[11px]">Bank Account Name</span>
+                  <span className="font-bold text-gray-800">H GIRISH PRASAD (Canara Bank)</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-gray-500 uppercase text-[11px]">Total Cart Amount</span>
+                  <span className="font-black text-emerald-600 text-lg sm:text-xl">₹{totalAmount}</span>
+                </div>
               </div>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-gray-500 uppercase">Account Name</span>
-              <span className="text-sm font-bold text-gray-900">
-                H GIRISH PRASAD
+          );
+        })()}
+
+        {/* MANDATORY CHECKOUT VERIFICATION FIELDS RIGHT UNDER QR */}
+        <div className="bg-white/5 border border-white/10 rounded-3xl p-6 sm:p-8 mb-8 text-left space-y-6">
+          <div className="border-b border-white/10 pb-3">
+            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+              <span>📝</span> Payment Confirmation Details
+            </h3>
+            <p className="text-xs text-gray-400 mt-1">
+              Since this is a direct bank transfer, please provide your transaction reference and screenshot for quick admin approval.
+            </p>
+          </div>
+
+          {/* FIELD 1: 12-DIGIT UTR */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-bold text-gray-200 uppercase tracking-wider">
+                12-Digit UTR / UPI Transaction Reference No. <span className="text-rose-400">*</span>
+              </label>
+              <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                Mandatory
               </span>
             </div>
+            <input
+              type="text"
+              name="utr"
+              placeholder="e.g. 4289XXXXXXXX (12-digit number)"
+              value={formData.utr}
+              onChange={handleChange}
+              required
+              maxLength={25}
+              className="w-full p-4 rounded-2xl bg-black/40 border border-white/10 text-white font-mono tracking-wider focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition placeholder:text-gray-500"
+            />
+            <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1.5">
+              <span>💡</span> You can copy the 12-digit UTR or Transaction ID from your payment success screen in GPay, PhonePe, Paytm, or BHIM.
+            </p>
           </div>
-        </div>
 
-        {/* PAYMENT PROOF */}
-        <div className="mb-8 text-left">
-          <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
-            Upload Payment Screenshot <span className="text-rose-400">*</span>
-          </label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => setPaymentProof(e.target.files?.[0] || null)}
-            required
-            className="w-full text-gray-300 file:mr-4 file:py-3.5 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-amber-500 file:text-black hover:file:bg-amber-400 transition cursor-pointer bg-black/40 rounded-2xl border border-white/10 p-3"
-          />
-          {paymentProof && (
-            <div className="mt-3 p-3 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-3">
-              <span className="text-xl">📎</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-white truncate">{paymentProof.name}</p>
-                <p className="text-xs text-emerald-400 font-medium">✓ Screenshot selected</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPaymentProof(null)}
-                className="text-xs text-red-400 hover:text-red-300 font-bold px-3 py-1 bg-red-500/10 rounded-lg border border-red-500/20"
-              >
-                Remove
-              </button>
+          {/* FIELD 2: PAYMENT SCREENSHOT */}
+          <div className="pt-2">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-bold text-gray-200 uppercase tracking-wider">
+                Upload Payment Success Screenshot <span className="text-rose-400">*</span>
+              </label>
+              <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                Mandatory
+              </span>
             </div>
-          )}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setPaymentProof(e.target.files?.[0] || null)}
+              required
+              className="w-full text-gray-300 file:mr-4 file:py-3.5 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-amber-500 file:text-black hover:file:bg-amber-400 transition cursor-pointer bg-black/40 rounded-2xl border border-white/10 p-3"
+            />
+            {paymentProof && (
+              <div className="mt-3 p-3 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-3">
+                <span className="text-xl">📎</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-white truncate">{paymentProof.name}</p>
+                  <p className="text-xs text-emerald-400 font-medium">✓ Screenshot selected</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPaymentProof(null)}
+                  className="text-xs text-red-400 hover:text-red-300 font-bold px-3 py-1 bg-red-500/10 rounded-lg border border-red-500/20 transition"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* BUTTON */}

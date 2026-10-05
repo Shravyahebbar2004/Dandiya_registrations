@@ -30,6 +30,7 @@ interface User {
   coupon_code?: string;
   club_affiliation?: string;
   bib_number?: number | string | null;
+  utr?: string;
 }
 
 interface Analytics {
@@ -59,6 +60,7 @@ export default function AdminPage({
       'Phone',
       'Ticket',
       'Club / Category',
+      'UTR / UPI Ref',
       'Payment Status',
       'Coupon Used',
       'Entries',
@@ -109,6 +111,7 @@ export default function AdminPage({
           u.phone_number,
           u.ticket_type,
           u.club_affiliation || 'None',
+          u.utr || '-',
           u.payment_status,
           u.coupon_code || '-',
           `${u.used_entries}/${u.allowed_entries}`,
@@ -173,6 +176,7 @@ export default function AdminPage({
       'Phone',
       'Ticket',
       'Club / Category',
+      'UTR / UPI Ref',
       'Payment Status',
       'Coupon Used',
       'Entries',
@@ -188,6 +192,7 @@ export default function AdminPage({
       user.phone_number,
       user.ticket_type,
       user.club_affiliation || 'None',
+      user.utr || '-',
       user.payment_status,
       user.coupon_code || '-',
       `${user.used_entries}/${user.allowed_entries}`,
@@ -290,6 +295,7 @@ export default function AdminPage({
       'Phone Number',
       'Ticket Type',
       'BIB Number',
+      'UTR / UPI Ref',
       'Payment Status',
       'Club / Affiliation',
       'Coupon Code',
@@ -311,6 +317,7 @@ export default function AdminPage({
       u.phone_number || 'N/A',
       u.ticket_type || 'N/A',
       u.bib_number ? `#${u.bib_number}` : '-',
+      u.utr || '-',
       u.payment_status || 'pending',
       u.club_affiliation || 'None',
       u.coupon_code || '-',
@@ -1131,7 +1138,9 @@ transition            border
 
               <th className="p-5">Coupon Code</th>
 
-              <th className="p-5">Payment</th>
+              <th className="p-5">UTR / Ref #</th>
+
+              <th className="p-5">Payment Proof</th>
 
               <th className="p-5">Approval</th>
 
@@ -1216,6 +1225,20 @@ transition            border
                     <span className="bg-violet-500/20 text-violet-300 border border-violet-500/40 px-3 py-1.5 rounded-xl font-bold uppercase text-xs tracking-wider">
                       🏷️ {user.coupon_code}
                     </span>
+                  ) : (
+                    <span className="text-gray-500 text-xs font-semibold">-</span>
+                  )}
+                </td>
+
+                {/* UTR / UPI REF NUMBER */}
+                <td className="p-5">
+                  {user.utr ? (
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-xl font-mono font-bold text-xs select-all">
+                        {user.utr}
+                      </span>
+                      <span className="text-[10px] text-gray-400">UPI Ref</span>
+                    </div>
                   ) : (
                     <span className="text-gray-500 text-xs font-semibold">-</span>
                   )}
