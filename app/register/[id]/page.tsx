@@ -110,6 +110,16 @@ export default function RegisterPage({
     setCouponMessage(null);
   };
 
+  const [copiedUpi, setCopiedUpi] = useState(false);
+
+  const handleCopyUpi = () => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText('anirudha26hindupur@cnrb');
+      setCopiedUpi(true);
+      setTimeout(() => setCopiedUpi(false), 2000);
+    }
+  };
+
   const getDandiyaConfig = (evt: any) => {
     if (!evt || !evt.custom_pricing) return null;
     try {
@@ -341,6 +351,16 @@ export default function RegisterPage({
     setParticipants(updated);
   };
 
+  const parsePhone = (phone: string) => {
+    let cleaned = phone.replace(/\D/g, '');
+    if (cleaned.length === 12 && cleaned.startsWith('91')) {
+      cleaned = cleaned.substring(2);
+    } else if (cleaned.length === 11 && cleaned.startsWith('0')) {
+      cleaned = cleaned.substring(1);
+    }
+    return cleaned;
+  };
+
   // =====================================
   // HANDLE REGISTER
   // =====================================
@@ -367,61 +387,44 @@ export default function RegisterPage({
           return;
         }
       }
+
+      if (!formData.emergency_contact_name?.trim()) {
+        alert("Please enter Emergency Contact Name!");
+        return;
+      }
+      if (!formData.emergency_contact?.trim()) {
+        alert("Please enter Emergency Contact Number!");
+        return;
+      }
+      if (!formData.club_affiliation) {
+        alert("Please select your Club / Category Affiliation!");
+        return;
+      }
+      if ((formData.club_affiliation === 'Rotaract Club' || formData.club_affiliation === 'Run Club') && !formData.custom_club_name?.trim()) {
+        alert(`Please enter your ${formData.club_affiliation} Name!`);
+        return;
+      }
     } else {
       if (!formData.full_name?.trim()) {
         alert("Please enter your Full Name!");
         return;
       }
-      if (!formData.blood_group) {
-        alert("Please select your Blood Group!");
-        return;
-      }
-      if (!formData.gender) {
-        alert("Please select your Gender!");
-        return;
-      }
     }
 
     if (!formData.email?.trim()) {
-      alert("Please enter your Email Address!");
+      alert("Please enter your Registering Email Address!");
       return;
     }
-    if (!formData.phone_number?.trim()) {
-      alert("Please enter your Phone Number!");
-      return;
-    }
-    if (!formData.emergency_contact_name?.trim()) {
-      alert("Please enter Emergency Contact Name!");
-      return;
-    }
-    if (!formData.emergency_contact?.trim()) {
-      alert("Please enter Emergency Contact Number!");
-      return;
-    }
-    if (!formData.club_affiliation) {
-      alert("Please select your Club / Category Affiliation!");
-      return;
-    }
-    if ((formData.club_affiliation === 'Rotaract Club' || formData.club_affiliation === 'Run Club') && !formData.custom_club_name?.trim()) {
-      alert(`Please enter your ${formData.club_affiliation} Name!`);
-      return;
-    }
-
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email.trim())) {
       alert("Please enter a valid email address!");
       return;
     }
 
-    const parsePhone = (phone: string) => {
-      let cleaned = phone.replace(/\D/g, '');
-      if (cleaned.length === 12 && cleaned.startsWith('91')) {
-        cleaned = cleaned.substring(2);
-      } else if (cleaned.length === 11 && cleaned.startsWith('0')) {
-        cleaned = cleaned.substring(1);
-      }
-      return cleaned;
-    };
+    if (!formData.phone_number?.trim()) {
+      alert("Please enter your Registering Phone Number!");
+      return;
+    }
 
     const phoneRegex = /^[6-9]\d{9}$/;
     
@@ -430,7 +433,7 @@ export default function RegisterPage({
       return;
     }
 
-    if (!phoneRegex.test(parsePhone(formData.emergency_contact))) {
+    if (isMarathon && !phoneRegex.test(parsePhone(formData.emergency_contact))) {
       alert("Please enter a valid 10-digit Indian phone number for Emergency Contact!");
       return;
     }
@@ -439,7 +442,6 @@ export default function RegisterPage({
       setSubmitting(true);
 
       const tickets: string[] = [];
-      const isMarathon = event.category?.toLowerCase()?.trim() === 'marathon';
       const dandiyaCfg = getDandiyaConfig(event);
       
       if (isMarathon) {
@@ -469,16 +471,19 @@ export default function RegisterPage({
       // PREPARE DRAFT REGISTRATION DATA
       const draftData = new FormData();
       draftData.append('full_name', formData.full_name || (isMarathon && participants.length > 0 ? participants[0].full_name : 'Group Purchaser'));
-      draftData.append('email', formData.email);
-      draftData.append('phone_number', formData.phone_number);
-      draftData.append('emergency_contact_name', formData.emergency_contact_name);
-      draftData.append('emergency_contact', formData.emergency_contact);
-      draftData.append('blood_group', formData.blood_group || '');
-      draftData.append('gender', formData.gender || '');
+      draftData.append('email', formData.email.trim());
+      draftData.append('phone_number', parsePhone(formData.phone_number));
+      draftData.append('emergency_contact_name', isMarathon ? formData.emergency_contact_name : '');
+      draftData.append('emergency_contact', isMarathon ? parsePhone(formData.emergency_contact) : '');
+      draftData.append('blood_group', isMarathon ? (formData.blood_group || '') : '');
+      draftData.append('gender', isMarathon ? (formData.gender || '') : '');
 
-      let finalClubAffiliation = formData.club_affiliation || '';
-      if ((formData.club_affiliation === 'Rotaract Club' || formData.club_affiliation === 'Run Club') && formData.custom_club_name?.trim()) {
-        finalClubAffiliation = `${formData.club_affiliation} (${formData.custom_club_name.trim()})`;
+      let finalClubAffiliation = '';
+      if (isMarathon) {
+        finalClubAffiliation = formData.club_affiliation || '';
+        if ((formData.club_affiliation === 'Rotaract Club' || formData.club_affiliation === 'Run Club') && formData.custom_club_name?.trim()) {
+          finalClubAffiliation = `${formData.club_affiliation} (${formData.custom_club_name.trim()})`;
+        }
       }
       draftData.append('club_affiliation', finalClubAffiliation);
       draftData.append('tickets', JSON.stringify(tickets));
@@ -538,16 +543,19 @@ export default function RegisterPage({
 
       const submitData = new FormData();
       submitData.append('full_name', formData.full_name || (isMarathon && participants.length > 0 ? participants[0].full_name : 'Group Purchaser'));
-      submitData.append('email', formData.email);
-      submitData.append('phone_number', formData.phone_number);
-      submitData.append('emergency_contact_name', formData.emergency_contact_name);
-      submitData.append('emergency_contact', formData.emergency_contact);
-      submitData.append('blood_group', formData.blood_group || '');
-      submitData.append('gender', formData.gender || '');
+      submitData.append('email', formData.email.trim());
+      submitData.append('phone_number', parsePhone(formData.phone_number));
+      submitData.append('emergency_contact_name', isMarathon ? formData.emergency_contact_name : '');
+      submitData.append('emergency_contact', isMarathon ? parsePhone(formData.emergency_contact) : '');
+      submitData.append('blood_group', isMarathon ? (formData.blood_group || '') : '');
+      submitData.append('gender', isMarathon ? (formData.gender || '') : '');
       
-      let finalClubAffiliation = formData.club_affiliation || '';
-      if ((formData.club_affiliation === 'Rotaract Club' || formData.club_affiliation === 'Run Club') && formData.custom_club_name?.trim()) {
-        finalClubAffiliation = `${formData.club_affiliation} (${formData.custom_club_name.trim()})`;
+      let finalClubAffiliation = '';
+      if (isMarathon) {
+        finalClubAffiliation = formData.club_affiliation || '';
+        if ((formData.club_affiliation === 'Rotaract Club' || formData.club_affiliation === 'Run Club') && formData.custom_club_name?.trim()) {
+          finalClubAffiliation = `${formData.club_affiliation} (${formData.custom_club_name.trim()})`;
+        }
       }
       submitData.append('club_affiliation', finalClubAffiliation);
       
@@ -1037,7 +1045,7 @@ export default function RegisterPage({
             </div>
             <div className="flex justify-between items-center pt-3 border-t border-white/10 mt-3">
               <div>
-                <span className="text-xs uppercase tracking-wider text-gray-400 font-bold block">Total Payable</span>
+                <span className="text-xs uppercase tracking-wider text-gray-400 font-bold block">Total Amount to be Paid</span>
                 <span className="text-xs text-amber-200/80">Valid for {allowedEntries} Entry Passes</span>
               </div>
               <span className="text-4xl font-black text-amber-400">
@@ -1057,23 +1065,23 @@ export default function RegisterPage({
             }}
             className="w-full bg-gradient-to-r from-amber-500 via-rose-500 to-amber-500 hover:from-amber-600 hover:to-rose-600 text-black font-black text-xl py-5 rounded-2xl transition shadow-[0_0_35px_rgba(245,158,11,0.35)] hover:scale-[1.01]"
           >
-            Proceed to Participant Details →
+            Proceed to Registration & Payment →
           </button>
         </div>
       ) : hasCustomPricing && step === 1 ? (
-        <div className="bg-white/5 border border-white/10 backdrop-blur-xl rounded-3xl p-10 w-full max-w-3xl shadow-2xl">
-          <h1 className="text-4xl md:text-5xl font-black mb-3 text-amber-300">
+        <div className="bg-white/5 border border-white/10 backdrop-blur-xl rounded-3xl p-6 sm:p-10 w-full max-w-3xl shadow-2xl">
+          <h1 className="text-3xl sm:text-5xl font-black mb-3 text-amber-300">
             {event?.category?.toLowerCase()?.includes('dandiya') || event?.category?.toLowerCase()?.includes('garba') 
               ? '🪩 Select Your Dandiya Passes' 
               : event?.category?.toLowerCase()?.trim() === 'marathon' 
                 ? '🏃 Select Your Distance' 
                 : '🎫 Select Your Ticket Passes'}
           </h1>
-          <p className="text-gray-400 mb-8 text-lg">
+          <p className="text-gray-400 mb-8 text-sm sm:text-base">
             Choose your desired pass types below to proceed to registration.
           </p>
           
-          <div className="space-y-6 mb-8">
+          <div className="space-y-4 mb-8">
             {event.custom_pricing ? (() => {
               try {
                 const customPricing = typeof event.custom_pricing === 'string' ? JSON.parse(event.custom_pricing) : event.custom_pricing;
@@ -1083,7 +1091,7 @@ export default function RegisterPage({
                     : (Number(d[activeSlabKey]) || 0);
                   const passDetail = d.additional_info || (d.name.toLowerCase().includes('couple') ? 'Entry for 2 Members' : d.name.toLowerCase().includes('group') ? 'Group Pass' : '1 Member');
                   return (
-                    <div key={d.name} className="p-6 md:p-8 rounded-3xl border-2 border-white/10 bg-black/40 mb-4">
+                    <div key={d.name} className="p-4 sm:p-6 rounded-2xl border-2 border-white/10 bg-black/40 mb-3">
                       {renderCounter(d.name, d.name, passDetail, price)}
                     </div>
                   );
@@ -1094,81 +1102,52 @@ export default function RegisterPage({
             })() : null}
           </div>
 
-          {/* PARTNER / COUPON CODE BOX (ONLY IF EVENT HAS COUPONS) */}
-          {(() => {
-            const hasCoupons = (() => {
-              if (!event || !event.coupons) return false;
-              try {
-                const parsed = typeof event.coupons === 'string' ? JSON.parse(event.coupons) : event.coupons;
-                return Array.isArray(parsed) && parsed.length > 0;
-              } catch (e) {
-                return false;
-              }
-            })();
-
-            if (!hasCoupons) return null;
-
-            return (
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-8">
-                <label className="block text-sm font-bold text-cyan-300 mb-2">Have a Partner / Coupon Code?</label>
-                <div className="flex gap-3">
-                  <input 
-                    type="text" 
-                    placeholder="Enter the code" 
-                    value={couponInput}
-                    onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
-                    className="flex-1 p-3.5 rounded-xl bg-black/40 border border-white/10 text-white uppercase tracking-wider font-bold text-sm focus:border-cyan-500 outline-none"
-                  />
-                  <button 
-                    type="button"
-                    onClick={handleApplyCoupon}
-                    className="bg-cyan-500 hover:bg-cyan-600 text-black font-bold px-6 py-3.5 rounded-xl transition shadow-md"
-                  >
-                    Apply
-                  </button>
-                </div>
-                {couponMessage && (
-                  <div className={`mt-3 p-3 rounded-xl text-sm font-bold flex items-center justify-between ${couponMessage.type === 'success' ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'}`}>
-                    <span>{couponMessage.text}</span>
-                    {appliedCoupon && (
-                      <button 
-                        type="button" 
-                        onClick={handleRemoveCoupon} 
-                        className="text-xs underline hover:text-white ml-2"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                )}
+          {/* ORDER TOTAL CARD */}
+          <div className="bg-gradient-to-br from-amber-500/20 via-rose-500/10 to-purple-500/20 border border-amber-500/30 rounded-3xl p-6 mb-8 text-left">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-gray-300 text-sm">Passes Selected</span>
+              <span className="font-bold text-white text-base">
+                {allowedEntries} Passes
+              </span>
+            </div>
+            <div className="flex justify-between items-center pt-3 border-t border-white/10 mt-3">
+              <div>
+                <span className="text-xs uppercase tracking-wider text-gray-400 font-bold block">Total Amount to be Paid</span>
+                <span className="text-xs text-amber-200/80">Valid for {allowedEntries} Entry Passes</span>
               </div>
-            );
-          })()}
+              <span className="text-4xl font-black text-amber-400">
+                ₹{totalAmount}
+              </span>
+            </div>
+          </div>
 
           <button
             onClick={() => {
               if (totalAmount === 0 || allowedEntries === 0) return alert('Please add at least one ticket to your cart.');
               
-              const newParticipants: any[] = [];
-              Object.entries(quantities).forEach(([type, count]) => {
-                if (count > 0) {
-                  for (let i = 0; i < count; i++) {
-                    newParticipants.push({
-                      ticket_type: type,
-                      full_name: '',
-                      blood_group: '',
-                      gender: ''
-                    });
+              const isMarathon = event.category?.toLowerCase()?.trim() === 'marathon';
+              if (isMarathon) {
+                const newParticipants: any[] = [];
+                Object.entries(quantities).forEach(([type, count]) => {
+                  if (count > 0) {
+                    for (let i = 0; i < count; i++) {
+                      newParticipants.push({
+                        ticket_type: type,
+                        full_name: '',
+                        blood_group: '',
+                        gender: ''
+                      });
+                    }
                   }
-                }
-              });
-              setParticipants(newParticipants);
+                });
+                setParticipants(newParticipants);
+              }
               setStep(2);
             }}
-            className="w-full bg-cyan-500 hover:bg-cyan-600 text-black font-black text-xl py-5 rounded-2xl transition shadow-[0_0_30px_rgba(34,211,238,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-gradient-to-r from-amber-500 via-rose-500 to-amber-500 hover:from-amber-600 hover:to-rose-600 text-black font-black text-xl py-5 rounded-2xl transition shadow-[0_0_35px_rgba(245,158,11,0.35)] disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01]"
             disabled={totalAmount === 0}
           >
-            Proceed to Registration
+            Proceed to Registration & Payment →
           </button>
         </div>
       ) : (
@@ -1176,248 +1155,267 @@ export default function RegisterPage({
         onSubmit={handleSubmit}
         className="bg-white/5 border border-white/10 backdrop-blur-xl rounded-3xl p-5 sm:p-10 w-full max-w-2xl shadow-2xl"
       >
-        <h1 className="text-3xl sm:text-5xl font-black mb-3">{event.title}</h1>
-        <p className="text-gray-400 mb-8 sm:mb-10 text-sm sm:text-base">Register for this event</p>
-
-        {/* PRIMARY CONTACT DETAILS */}
-        <h2 className="text-xl sm:text-2xl font-bold text-violet-300 mb-4 border-b border-white/10 pb-2">Primary Contact (Purchaser)</h2>
-        
-        {event.category?.toLowerCase()?.trim() !== 'marathon' && (
-          <input
-            type="text"
-            name="full_name"
-            placeholder="Full Name"
-            value={formData.full_name}
-            onChange={handleChange}
-            required
-            className="w-full p-4 rounded-2xl bg-black/30 border border-white/10 mb-5 focus:ring-2 focus:ring-violet-500 outline-none"
-          />
-        )}
-        <input
-          type="email"
-          name="email"
-          placeholder="Email"
-          value={formData.email}
-          onChange={handleChange}
-          required
-          className="w-full p-4 rounded-2xl bg-black/30 border border-white/10 mb-5 focus:ring-2 focus:ring-violet-500 outline-none"
-        />
-        <input
-          type="text"
-          name="phone_number"
-          placeholder="Phone Number"
-          value={formData.phone_number}
-          onChange={handleChange}
-          required
-          className="w-full p-4 rounded-2xl bg-black/30 border border-white/10 mb-5 focus:ring-2 focus:ring-violet-500 outline-none"
-        />
-        <input
-          type="text"
-          name="emergency_contact_name"
-          placeholder="Emergency Contact Name"
-          value={formData.emergency_contact_name}
-          onChange={handleChange}
-          required
-          className="w-full p-4 rounded-2xl bg-black/30 border border-white/10 mb-5 focus:ring-2 focus:ring-violet-500 outline-none"
-        />
-        <input
-          type="text"
-          name="emergency_contact"
-          placeholder="Emergency Contact Number"
-          value={formData.emergency_contact}
-          onChange={handleChange}
-          required
-          className="w-full p-4 rounded-2xl bg-black/30 border border-white/10 mb-5 focus:ring-2 focus:ring-violet-500 outline-none"
-        />
-        {event.category?.toLowerCase()?.trim() !== 'marathon' && (
-          <>
-            <div className="mb-5">
-              <select
-                name="blood_group"
-                value={formData.blood_group}
-                onChange={handleChange}
-                required
-                className="w-full p-4 rounded-2xl bg-black/30 border border-white/10 focus:ring-2 focus:ring-violet-500 outline-none text-gray-200"
+        {/* HEADER */}
+        <div className="text-center sm:text-left mb-8">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="inline-block px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
+              Registration & Payment
+            </span>
+            {(isDandiyaTiered || hasCustomPricing) && (
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="text-xs font-bold text-amber-300 hover:text-amber-200 underline flex items-center gap-1"
               >
-                <option value="" disabled>Select Blood Group</option>
-                <option value="A+">A+</option>
-                <option value="A-">A-</option>
-                <option value="B+">B+</option>
-                <option value="B-">B-</option>
-                <option value="AB+">AB+</option>
-                <option value="AB-">AB-</option>
-                <option value="O+">O+</option>
-                <option value="O-">O-</option>
-              </select>
-            </div>
-            <div className="mb-5">
-              <select
-                name="gender"
-                value={formData.gender}
-                onChange={handleChange}
-                required
-                className="w-full p-4 rounded-2xl bg-black/30 border border-white/10 focus:ring-2 focus:ring-violet-500 outline-none text-gray-300"
-              >
-                <option value="" disabled>Select Gender</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-          </>
-        )}
-
-        {/* CLUB / GROUP AFFILIATION */}
-        <div className="mb-5">
-          <label className="block text-sm font-bold text-violet-300 mb-2">Club / Category Affiliation</label>
-          <select
-            name="club_affiliation"
-            value={formData.club_affiliation}
-            onChange={handleChange}
-            required
-            className="w-full p-4 rounded-2xl bg-black/30 border border-white/10 focus:ring-2 focus:ring-violet-500 outline-none text-gray-200"
-          >
-            <option value="" disabled>Select Club / Category</option>
-            <option value="Rotaract Club">Rotaract Club</option>
-            <option value="Run Club">Run Club</option>
-            <option value="General Public / Other">General Public / Other</option>
-          </select>
+                ← Back to Ticket Selection
+              </button>
+            )}
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-amber-200 via-rose-300 to-amber-400 bg-clip-text text-transparent">
+            {event.title}
+          </h1>
+          <p className="text-gray-400 text-sm mt-1">
+            Review ticket selection, enter your registering details, and pay via Canara Bank UPI QR.
+          </p>
         </div>
 
-        {/* SPECIFY CLUB NAME IF ROTARACT OR RUN CLUB IS SELECTED */}
-        {formData.club_affiliation === 'Rotaract Club' && (
-          <div className="mb-8">
-            <label className="block text-sm font-bold text-cyan-300 mb-2">Rotaract Club Name</label>
-            <input
-              type="text"
-              name="custom_club_name"
-              placeholder="Rotaract Club Name"
-              value={formData.custom_club_name}
-              onChange={handleChange}
-              required
-              className="w-full p-4 rounded-2xl bg-black/30 border border-white/10 focus:ring-2 focus:ring-cyan-500 outline-none text-white"
-            />
-          </div>
-        )}
-
-        {formData.club_affiliation === 'Run Club' && (
-          <div className="mb-8">
-            <label className="block text-sm font-bold text-cyan-300 mb-2">Run Club Name</label>
-            <input
-              type="text"
-              name="custom_club_name"
-              placeholder="Run Club Name"
-              value={formData.custom_club_name}
-              onChange={handleChange}
-              required
-              className="w-full p-4 rounded-2xl bg-black/30 border border-white/10 focus:ring-2 focus:ring-cyan-500 outline-none text-white"
-            />
-          </div>
-        )}
-
-        {/* PARTICIPANT DETAILS (MARATHON ONLY) */}
-        {event.category?.toLowerCase()?.trim() === 'marathon' && participants.length > 0 && (
-          <div className="mt-8 mb-8 space-y-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-cyan-300 mb-4 border-b border-white/10 pb-2">Participant Details</h2>
-            {participants.map((p, i) => (
-              <div key={i} className="bg-white/5 border border-white/10 p-4 sm:p-5 rounded-2xl">
-                <h3 className="text-base sm:text-lg font-bold mb-4 text-gray-300">Participant {i + 1} • <span className="text-cyan-400">{p.ticket_type}</span></h3>
-                <input
-                  type="text"
-                  placeholder="Full Name"
-                  value={p.full_name}
-                  onChange={(e) => handleParticipantChange(i, 'full_name', e.target.value)}
-                  required
-                  className="w-full p-3 rounded-xl bg-black/30 border border-white/10 mb-4 focus:ring-2 focus:ring-cyan-500 outline-none text-sm"
-                />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <select
-                    value={p.gender}
-                    onChange={(e) => handleParticipantChange(i, 'gender', e.target.value)}
-                    required
-                    className="w-full p-3 rounded-xl bg-black/30 border border-white/10 focus:ring-2 focus:ring-cyan-500 outline-none text-gray-300 text-sm"
-                  >
-                    <option value="" disabled>Gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                  <select
-                    value={p.blood_group}
-                    onChange={(e) => handleParticipantChange(i, 'blood_group', e.target.value)}
-                    required
-                    className="w-full p-3 rounded-xl bg-black/30 border border-white/10 focus:ring-2 focus:ring-cyan-500 outline-none text-gray-200 text-sm"
-                  >
-                    <option value="" disabled>Blood Group</option>
-                    <option value="A+">A+</option>
-                    <option value="A-">A-</option>
-                    <option value="B+">B+</option>
-                    <option value="B-">B-</option>
-                    <option value="AB+">AB+</option>
-                    <option value="AB-">AB-</option>
-                    <option value="O+">O+</option>
-                    <option value="O-">O-</option>
-                  </select>
-                </div>
+        {/* TICKET INFO CARD */}
+        <div className="bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-purple-500/15 border-2 border-amber-500/40 rounded-3xl p-5 sm:p-6 mb-8 text-left shadow-lg">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500 text-black">
+                  {activeSlabName}
+                </span>
+                <span className="text-xs text-amber-200/90 font-medium">
+                  {allowedEntries} {allowedEntries > 1 ? 'Entries' : 'Entry'} Allowed
+                </span>
               </div>
-            ))}
-          </div>
-        )}
-        
-        {/* TICKET SELECTION OVERVIEW */}
-        <div className="mb-4">
-          <p className="text-gray-400 mb-2">Active Pricing Tier: <span className="text-cyan-300 font-bold">{activeSlabName}</span></p>
-        </div>
-        <div className="mb-8">
-          {isDandiyaTiered ? (
-            <div className="bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-purple-500/10 border border-amber-500/40 p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-black uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                    {activeSlabName}
-                  </span>
-                  <span className="text-xs text-gray-400">1 QR Pass • {allowedEntries} Allowed Entries</span>
-                </div>
-                <h3 className="text-xl font-black text-white">
-                  {quantities.dandiya || 1} x Dandiya Passes
-                </h3>
-                <p className="text-sm text-gray-300 mt-0.5">
-                  Rate: <span className="text-amber-300 font-bold">₹{(totalAmount / Math.max(1, quantities.dandiya || 1)).toFixed(0)}</span> per pass • Total: <span className="text-amber-300 font-bold">₹{totalAmount}</span>
+              <h3 className="text-xl sm:text-2xl font-black text-white">
+                {isDandiyaTiered ? (
+                  `${quantities.dandiya || 1} x Dandiya Passes`
+                ) : hasCustomPricing ? (
+                  Object.entries(quantities).filter(([_, v]) => v > 0).map(([k, v]) => `${v}x ${k}`).join(', ') || 'Passes Selected'
+                ) : (
+                  Object.entries(quantities).filter(([_, v]) => v > 0).map(([k, v]) => `${v}x ${k} Pass`).join(', ') || 'Passes Selected'
+                )}
+              </h3>
+              <p className="text-sm text-gray-300 mt-1">
+                Rate: <span className="text-amber-300 font-bold">₹{(totalAmount / Math.max(1, allowedEntries)).toFixed(0)}</span> per pass • Total Amount: <span className="text-amber-300 font-black text-lg">₹{totalAmount}</span>
+              </p>
+              {dandiyaConfig?.inclusions && (
+                <p className="text-xs text-gray-400 mt-2 flex items-center gap-1.5">
+                  <span>🪩</span> {dandiyaConfig.inclusions}
                 </p>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setStep(1)}
-                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-sm font-bold transition flex items-center gap-1.5"
-              >
-                ← Change Passes
-              </button>
+              )}
             </div>
-          ) : hasCustomPricing ? (
-            <div className="bg-amber-950/30 border border-amber-500/40 p-5 rounded-2xl flex justify-between items-center">
-              <div>
-                <p className="text-amber-300 font-bold mb-1">Passes Selected</p>
-                <h3 className="text-xl font-black text-white">
-                  {Object.entries(quantities).filter(([_, v]) => v > 0).map(([k, v]) => `${v}x ${k}`).join(', ') || 'No pass selected'}
-                </h3>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setStep(1)}
-                className="text-amber-400 hover:text-amber-300 underline text-sm font-bold"
-              >
-                Change Passes
-              </button>
+
+            <div className="flex sm:flex-col items-center gap-2 self-end sm:self-center">
+              {isDandiyaTiered && (
+                <div className="flex items-center gap-2 bg-black/60 border border-white/10 px-3 py-1.5 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setQuantities({ ...quantities, dandiya: Math.max(1, (quantities.dandiya || 1) - 1) })}
+                    className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center font-bold text-white transition text-base"
+                  >
+                    -
+                  </button>
+                  <span className="font-black text-amber-300 min-w-[20px] text-center text-base">
+                    {quantities.dandiya || 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setQuantities({ ...quantities, dandiya: Math.min(50, (quantities.dandiya || 1) + 1) })}
+                    className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center font-bold text-white transition text-base"
+                  >
+                    +
+                  </button>
+                </div>
+              )}
+              {(isDandiyaTiered || hasCustomPricing) && (
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="text-xs text-amber-300 hover:text-amber-200 underline font-bold px-2 py-1"
+                >
+                  Change Tickets
+                </button>
+              )}
             </div>
-          ) : (
-            <>
-              {renderCounter('solo', 'Solo Pass', '1 Member', Number(event[`${activeSlabKey}_solo_price`]) || 0)}
-              {renderCounter('couple', 'Couple Pass', '2 Members', Number(event[`${activeSlabKey}_couple_price`]) || 0)}
-              {renderCounter('group', 'Group Pass', '4 Members', Number(event[`${activeSlabKey}_group_price`]) || 0)}
-              {(Number(event.bulk_pass_price) > 0) && renderCounter('bulk', 'Bulk Pass', `${event.bulk_pass_entries || 0} Members`, Number(event.bulk_pass_price) || 0)}
-            </>
-          )}
+          </div>
         </div>
+
+        {/* STANDARD EVENT TICKET COUNTER (IF NOT DANDIYA AND NOT CUSTOM PRICING) */}
+        {!isDandiyaTiered && !hasCustomPricing && (
+          <div className="mb-8">
+            <h2 className="text-lg font-bold text-amber-300 mb-3">Select Tickets</h2>
+            {renderCounter('solo', 'Solo Pass', '1 Member', Number(event[`${activeSlabKey}_solo_price`]) || 0)}
+            {renderCounter('couple', 'Couple Pass', '2 Members', Number(event[`${activeSlabKey}_couple_price`]) || 0)}
+            {renderCounter('group', 'Group Pass', '4 Members', Number(event[`${activeSlabKey}_group_price`]) || 0)}
+            {(Number(event.bulk_pass_price) > 0) && renderCounter('bulk', 'Bulk Pass', `${event.bulk_pass_entries || 0} Members`, Number(event.bulk_pass_price) || 0)}
+          </div>
+        )}
+
+        {/* REGISTERING CONTACT DETAILS */}
+        <div className="mb-8 text-left">
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-1 flex items-center gap-2">
+            <span>👤</span> Registering Contact Details
+          </h2>
+          <p className="text-xs text-gray-400 mb-5">
+            Only one email ID and phone number is required. Your official QR pass will be sent here.
+          </p>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
+                Full Name <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="text"
+                name="full_name"
+                placeholder="Enter Full Name"
+                value={formData.full_name}
+                onChange={handleChange}
+                required
+                className="w-full p-4 rounded-2xl bg-black/40 border border-white/10 text-white font-medium focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
+                Registering Email ID <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="email"
+                name="email"
+                placeholder="name@example.com"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                className="w-full p-4 rounded-2xl bg-black/40 border border-white/10 text-white font-medium focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition"
+              />
+              <p className="text-xs text-amber-300/80 mt-1.5 flex items-center gap-1.5">
+                <span>📩</span> Your official QR ticket pass will be delivered directly to this email ID.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
+                Registering Phone Number <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="tel"
+                name="phone_number"
+                placeholder="10-digit mobile number"
+                value={formData.phone_number}
+                onChange={handleChange}
+                required
+                maxLength={13}
+                className="w-full p-4 rounded-2xl bg-black/40 border border-white/10 text-white font-medium focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition"
+              />
+              <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1.5">
+                <span>📱</span> Used for entry verification at the venue & WhatsApp confirmation.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* MARATHON-ONLY FIELDS (EMERGENCY CONTACT, BLOOD GROUP, GENDER, PARTICIPANTS) */}
+        {event.category?.toLowerCase()?.trim() === 'marathon' && (
+          <div className="mb-8 p-6 bg-cyan-950/20 border border-cyan-500/30 rounded-3xl text-left space-y-4">
+            <h3 className="text-lg font-bold text-cyan-300 border-b border-white/10 pb-2">Marathon Medical & Emergency Details</h3>
+            
+            <input
+              type="text"
+              name="emergency_contact_name"
+              placeholder="Emergency Contact Name"
+              value={formData.emergency_contact_name}
+              onChange={handleChange}
+              required
+              className="w-full p-4 rounded-2xl bg-black/30 border border-white/10 focus:ring-2 focus:ring-cyan-500 outline-none text-white text-sm"
+            />
+            <input
+              type="text"
+              name="emergency_contact"
+              placeholder="Emergency Contact Number"
+              value={formData.emergency_contact}
+              onChange={handleChange}
+              required
+              className="w-full p-4 rounded-2xl bg-black/30 border border-white/10 focus:ring-2 focus:ring-cyan-500 outline-none text-white text-sm"
+            />
+            <select
+              name="club_affiliation"
+              value={formData.club_affiliation}
+              onChange={handleChange}
+              required
+              className="w-full p-4 rounded-2xl bg-black/30 border border-white/10 focus:ring-2 focus:ring-cyan-500 outline-none text-gray-200 text-sm"
+            >
+              <option value="" disabled>Select Club / Category Affiliation</option>
+              <option value="Rotaract Club">Rotaract Club</option>
+              <option value="Run Club">Run Club</option>
+              <option value="General Public / Other">General Public / Other</option>
+            </select>
+            {(formData.club_affiliation === 'Rotaract Club' || formData.club_affiliation === 'Run Club') && (
+              <input
+                type="text"
+                name="custom_club_name"
+                placeholder={`${formData.club_affiliation} Name`}
+                value={formData.custom_club_name}
+                onChange={handleChange}
+                required
+                className="w-full p-4 rounded-2xl bg-black/30 border border-white/10 focus:ring-2 focus:ring-cyan-500 outline-none text-white text-sm"
+              />
+            )}
+
+            {participants.length > 0 && (
+              <div className="mt-4 space-y-4 pt-4 border-t border-white/10">
+                <h4 className="text-base font-bold text-cyan-300">Individual Runner Details</h4>
+                {participants.map((p, i) => (
+                  <div key={i} className="bg-white/5 border border-white/10 p-4 rounded-2xl space-y-3">
+                    <p className="text-sm font-bold text-gray-300">Runner {i + 1} • <span className="text-cyan-400">{p.ticket_type}</span></p>
+                    <input
+                      type="text"
+                      placeholder="Full Name"
+                      value={p.full_name}
+                      onChange={(e) => handleParticipantChange(i, 'full_name', e.target.value)}
+                      required
+                      className="w-full p-3 rounded-xl bg-black/30 border border-white/10 focus:ring-2 focus:ring-cyan-500 outline-none text-sm"
+                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <select
+                        value={p.gender}
+                        onChange={(e) => handleParticipantChange(i, 'gender', e.target.value)}
+                        required
+                        className="w-full p-3 rounded-xl bg-black/30 border border-white/10 focus:ring-2 focus:ring-cyan-500 outline-none text-gray-300 text-sm"
+                      >
+                        <option value="" disabled>Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                      <select
+                        value={p.blood_group}
+                        onChange={(e) => handleParticipantChange(i, 'blood_group', e.target.value)}
+                        required
+                        className="w-full p-3 rounded-xl bg-black/30 border border-white/10 focus:ring-2 focus:ring-cyan-500 outline-none text-gray-200 text-sm"
+                      >
+                        <option value="" disabled>Blood Group</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                      </select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* PARTNER / COUPON CODE BOX (ONLY IF EVENT HAS COUPONS) */}
         {(() => {
@@ -1434,20 +1432,20 @@ export default function RegisterPage({
           if (!hasCoupons) return null;
 
           return (
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-8">
-              <label className="block text-sm font-bold text-violet-300 mb-2">Have a Partner / Coupon Code?</label>
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-8 text-left">
+              <label className="block text-sm font-bold text-amber-300 mb-2">Have a Partner / Coupon Code?</label>
               <div className="flex gap-3">
                 <input 
                   type="text" 
                   placeholder="Enter the code" 
                   value={couponInput}
                   onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
-                  className="flex-1 p-3.5 rounded-xl bg-black/40 border border-white/10 text-white uppercase tracking-wider font-bold text-sm focus:border-violet-500 outline-none"
+                  className="flex-1 p-3.5 rounded-xl bg-black/40 border border-white/10 text-white uppercase tracking-wider font-bold text-sm focus:border-amber-500 outline-none"
                 />
                 <button 
-                  type="button"
+                  type="button" 
                   onClick={handleApplyCoupon}
-                  className="bg-gradient-to-r from-violet-500 to-cyan-500 hover:from-violet-600 hover:to-cyan-600 text-white font-bold px-6 py-3.5 rounded-xl transition shadow-md"
+                  className="bg-amber-500 hover:bg-amber-600 text-black font-bold px-6 py-3.5 rounded-xl transition shadow-md"
                 >
                   Apply
                 </button>
@@ -1471,55 +1469,108 @@ export default function RegisterPage({
         })()}
 
         {/* PAYMENT BOX */}
-        <div className="bg-gradient-to-br from-violet-500/20 to-pink-500/20 border border-white/10 rounded-3xl p-8 mb-8">
-          <h2 className="text-3xl font-black mb-4">Payment Details</h2>
-          <div className="flex justify-between items-center mb-5">
-            <p className="text-xl text-gray-300">Selected Plan</p>
-            <h3 className="text-2xl font-bold capitalize">{activeSlabName}</h3>
+        <div className="bg-gradient-to-br from-amber-500/20 via-rose-500/10 to-purple-500/20 border border-amber-500/30 rounded-3xl p-6 sm:p-8 mb-8 text-left">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-gray-300 text-sm sm:text-base">Selected Plan</span>
+            <span className="font-bold text-white text-base sm:text-lg">{activeSlabName}</span>
           </div>
-          <div className="flex justify-between items-center mb-5">
-            <p className="text-xl text-gray-300">Allowed Entries</p>
-            <h3 className="text-2xl font-bold">{allowedEntries}</h3>
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-gray-300 text-sm sm:text-base">Total Passes / Entries</span>
+            <span className="font-bold text-white text-base sm:text-lg">{allowedEntries}</span>
           </div>
-          <div className="flex justify-between items-center">
-            <p className="text-xl text-gray-300">Total Amount</p>
-            <h1 className="text-5xl font-black text-violet-300">₹{totalAmount}</h1>
+          <div className="flex justify-between items-center pt-4 border-t border-white/10">
+            <div>
+              <span className="text-sm font-bold text-gray-300 uppercase tracking-wider block">Total Amount to be Paid</span>
+              <span className="text-xs text-amber-200/80">Inclusive of all pass inclusions</span>
+            </div>
+            <span className="text-4xl sm:text-5xl font-black text-amber-400">
+              ₹{totalAmount}
+            </span>
           </div>
         </div>
 
-        <div className="bg-white text-black rounded-3xl p-6 mb-8 text-center shadow-xl">
-          <h3 className="text-xl font-black text-blue-900 mb-3 uppercase tracking-wider">Canara Bank Official Payment QR</h3>
-          <div className="max-w-xs mx-auto bg-white p-2 rounded-2xl border border-gray-200">
+        {/* OFFICIAL CANARA BANK PAYMENT QR */}
+        <div className="bg-white text-black rounded-3xl p-6 sm:p-8 mb-8 text-center shadow-2xl border border-gray-200">
+          <div className="inline-block px-3 py-1 rounded-full bg-blue-100 text-blue-900 text-xs font-black uppercase tracking-wider mb-3">
+            Official Payment Gateway
+          </div>
+          <h3 className="text-2xl font-black text-blue-950 mb-1">
+            Canara Bank UPI Payment QR
+          </h3>
+          <p className="text-gray-600 text-xs sm:text-sm mb-4">
+            Scan using any UPI app (Google Pay, PhonePe, Paytm, BHIM, Cred)
+          </p>
+
+          <div className="max-w-[280px] mx-auto bg-white p-3 rounded-2xl border-2 border-gray-200 shadow-md">
             <img
               src="/payment-qr.jpg"
               alt="Canara Bank UPI Payment QR"
-              className="mx-auto rounded-xl max-h-96 w-auto object-contain"
+              className="mx-auto rounded-xl w-full h-auto object-contain"
             />
           </div>
-          <p className="text-gray-800 mt-4 font-bold text-lg">Scan & Pay Using Any UPI App</p>
-          <div className="mt-3 pt-3 border-t border-gray-200 text-sm">
-            <p className="text-gray-600 font-medium">UPI ID: <span className="font-bold text-gray-900 select-all">anirudha26hindupur@cnrb</span></p>
-            <p className="text-gray-600 font-medium mt-1">Account Name: <span className="font-bold text-gray-900">H GIRISH PRASAD</span></p>
+
+          <div className="mt-5 p-4 bg-gray-50 rounded-2xl border border-gray-200 max-w-md mx-auto text-left">
+            <div className="flex justify-between items-center mb-2 pb-2 border-b border-gray-200">
+              <span className="text-xs font-bold text-gray-500 uppercase">UPI ID</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-black text-gray-900 select-all font-mono">
+                  anirudha26hindupur@cnrb
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyUpi}
+                  className="px-2.5 py-1 text-xs font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition active:scale-95"
+                >
+                  {copiedUpi ? 'Copied! ✓' : 'Copy'}
+                </button>
+              </div>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-bold text-gray-500 uppercase">Account Name</span>
+              <span className="text-sm font-bold text-gray-900">
+                H GIRISH PRASAD
+              </span>
+            </div>
           </div>
         </div>
 
         {/* PAYMENT PROOF */}
-        <label className="block text-gray-400 mb-2 ml-2">Upload Payment Screenshot</label>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => setPaymentProof(e.target.files?.[0])}
-          required
-          className="w-full mb-8 text-gray-300 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-violet-500 file:text-white hover:file:bg-violet-600 transition cursor-pointer"
-        />
+        <div className="mb-8 text-left">
+          <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
+            Upload Payment Screenshot <span className="text-rose-400">*</span>
+          </label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => setPaymentProof(e.target.files?.[0] || null)}
+            required
+            className="w-full text-gray-300 file:mr-4 file:py-3.5 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-amber-500 file:text-black hover:file:bg-amber-400 transition cursor-pointer bg-black/40 rounded-2xl border border-white/10 p-3"
+          />
+          {paymentProof && (
+            <div className="mt-3 p-3 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-3">
+              <span className="text-xl">📎</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-white truncate">{paymentProof.name}</p>
+                <p className="text-xs text-emerald-400 font-medium">✓ Screenshot selected</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPaymentProof(null)}
+                className="text-xs text-red-400 hover:text-red-300 font-bold px-3 py-1 bg-red-500/10 rounded-lg border border-red-500/20"
+              >
+                Remove
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* BUTTON */}
         <button
           type="submit"
           disabled={submitting}
-          className="w-full bg-violet-500 hover:bg-violet-600 transition py-5 rounded-2xl font-bold text-xl disabled:opacity-50"
+          className="w-full bg-gradient-to-r from-amber-500 via-rose-500 to-amber-500 hover:from-amber-600 hover:to-rose-600 text-black font-black text-xl py-5 rounded-2xl transition shadow-[0_0_35px_rgba(245,158,11,0.35)] disabled:opacity-50 hover:scale-[1.01]"
         >
-          {submitting ? 'Sending Verification Code...' : 'Complete Registration'}
+          {submitting ? 'Sending Verification Code...' : 'Complete Registration & Verify'}
         </button>
       </form>
       )}
