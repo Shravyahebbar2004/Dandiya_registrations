@@ -102,6 +102,89 @@ export default function EditEventPage() {
     setCustomPricing(updated);
   };
 
+  // DANDIYA SPECIFIC TIERED & VOLUME PRICING STATE
+  const [dandiyaPricing, setDandiyaPricing] = useState({
+    flash_sale: {
+      enabled: true,
+      price: '249',
+      threshold: '50',
+      deadline: ''
+    },
+    slab1: {
+      name: 'Early Bird Offer',
+      threshold: '150',
+      price_1_4: '299',
+      price_5_9: '269',
+      price_10_plus: '239',
+      deadline: ''
+    },
+    slab2: {
+      name: 'Normal Slab',
+      threshold: '300',
+      price_1_4: '399',
+      price_5_9: '359',
+      price_10_plus: '319',
+      deadline: ''
+    },
+    slab3: {
+      enabled: false,
+      name: 'Last Chance Slab',
+      threshold: '500',
+      price_1_4: '499',
+      price_5_9: '449',
+      price_10_plus: '399',
+      deadline: ''
+    },
+    inclusions: 'Free pair of wooden Dandiya sticks included + Live DJ & Dhol setup.'
+  });
+
+  const updateDandiyaPhase = (phase: 'flash_sale' | 'slab1' | 'slab2' | 'slab3', field: string, value: any) => {
+    setDandiyaPricing(prev => ({
+      ...prev,
+      [phase]: {
+        ...prev[phase],
+        [field]: value
+      }
+    }));
+  };
+
+  const loadDandiyaPasses = () => {
+    setDandiyaPricing({
+      flash_sale: {
+        enabled: true,
+        price: '249',
+        threshold: '50',
+        deadline: ''
+      },
+      slab1: {
+        name: 'Early Bird Offer',
+        threshold: '150',
+        price_1_4: '299',
+        price_5_9: '269',
+        price_10_plus: '239',
+        deadline: ''
+      },
+      slab2: {
+        name: 'Normal Slab',
+        threshold: '300',
+        price_1_4: '399',
+        price_5_9: '359',
+        price_10_plus: '319',
+        deadline: ''
+      },
+      slab3: {
+        enabled: false,
+        name: 'Last Chance Slab',
+        threshold: '500',
+        price_1_4: '499',
+        price_5_9: '449',
+        price_10_plus: '399',
+        deadline: ''
+      },
+      inclusions: 'Free pair of wooden Dandiya sticks included + Live DJ & Dhol setup.'
+    });
+  };
+
   // NEW STATE FOR PARTNER COUPON CODES
   const [partnerCoupons, setPartnerCoupons] = useState<any[]>([]);
 
@@ -175,7 +258,46 @@ export default function EditEventPage() {
         if (event.custom_pricing) {
           try {
             const parsed = typeof event.custom_pricing === 'string' ? JSON.parse(event.custom_pricing) : event.custom_pricing;
-            if (Array.isArray(parsed)) setCustomPricing(parsed);
+            if (Array.isArray(parsed)) {
+              setCustomPricing(parsed);
+            } else if (parsed && typeof parsed === 'object') {
+              if (parsed.flash_sale || parsed.slab1) {
+                setDandiyaPricing({
+                  flash_sale: {
+                    enabled: parsed.flash_sale?.enabled ?? true,
+                    price: String(parsed.flash_sale?.price ?? '249'),
+                    threshold: String(parsed.flash_sale?.threshold ?? '50'),
+                    deadline: formatDateTimeLocal(parsed.flash_sale?.deadline) || ''
+                  },
+                  slab1: {
+                    name: parsed.slab1?.name || 'Early Bird Offer',
+                    threshold: String(parsed.slab1?.threshold ?? '150'),
+                    price_1_4: String(parsed.slab1?.price_1_4 ?? '299'),
+                    price_5_9: String(parsed.slab1?.price_5_9 ?? '269'),
+                    price_10_plus: String(parsed.slab1?.price_10_plus ?? '239'),
+                    deadline: formatDateTimeLocal(parsed.slab1?.deadline) || ''
+                  },
+                  slab2: {
+                    name: parsed.slab2?.name || 'Normal Slab',
+                    threshold: String(parsed.slab2?.threshold ?? '300'),
+                    price_1_4: String(parsed.slab2?.price_1_4 ?? '399'),
+                    price_5_9: String(parsed.slab2?.price_5_9 ?? '359'),
+                    price_10_plus: String(parsed.slab2?.price_10_plus ?? '319'),
+                    deadline: formatDateTimeLocal(parsed.slab2?.deadline) || ''
+                  },
+                  slab3: {
+                    enabled: Boolean(parsed.slab3?.enabled),
+                    name: parsed.slab3?.name || 'Last Chance Slab',
+                    threshold: String(parsed.slab3?.threshold ?? '500'),
+                    price_1_4: String(parsed.slab3?.price_1_4 ?? '499'),
+                    price_5_9: String(parsed.slab3?.price_5_9 ?? '449'),
+                    price_10_plus: String(parsed.slab3?.price_10_plus ?? '399'),
+                    deadline: formatDateTimeLocal(parsed.slab3?.deadline) || ''
+                  },
+                  inclusions: parsed.inclusions || 'Free pair of wooden Dandiya sticks included + Live DJ & Dhol setup.'
+                });
+              }
+            }
           } catch(e) {
             console.error(e);
           }
@@ -230,11 +352,30 @@ export default function EditEventPage() {
     setLoading(true);
 
     try {
-      const submitData = {
+      const isDandiyaCategory = formData.category?.toLowerCase()?.includes('dandiya') || formData.category?.toLowerCase()?.includes('garba');
+
+      const submitData: any = {
         ...formData,
-        custom_pricing: JSON.stringify(customPricing),
+        custom_pricing: isDandiyaCategory 
+          ? JSON.stringify({ type: 'dandiya_tiered', ...dandiyaPricing }) 
+          : JSON.stringify(customPricing),
         coupons: JSON.stringify(partnerCoupons)
       };
+
+      if (isDandiyaCategory) {
+        submitData.slab1_solo_price = dandiyaPricing.slab1.price_1_4;
+        submitData.slab1_couple_price = String(Number(dandiyaPricing.slab1.price_1_4) * 2);
+        submitData.slab1_group_price = String(Number(dandiyaPricing.slab1.price_5_9) * 4);
+        submitData.slab1_deadline = dandiyaPricing.slab1.deadline;
+        submitData.slab2_solo_price = dandiyaPricing.slab2.price_1_4;
+        submitData.slab2_couple_price = String(Number(dandiyaPricing.slab2.price_1_4) * 2);
+        submitData.slab2_group_price = String(Number(dandiyaPricing.slab2.price_5_9) * 4);
+        submitData.slab2_deadline = dandiyaPricing.slab2.deadline || formData.slab2_deadline;
+        if (dandiyaPricing.slab3.enabled) {
+          submitData.slab3_solo_price = dandiyaPricing.slab3.price_1_4;
+          submitData.slab3_deadline = dandiyaPricing.slab3.deadline;
+        }
+      }
 
       const response = await axios.put(
         `${process.env.NEXT_PUBLIC_API_URL}/api/edit-event/${id}`,
@@ -800,16 +941,360 @@ Tell attendees what makes your event special...
 
             </div>
 
-            {formData.category?.toLowerCase()?.trim() === 'marathon' ? (
+            {(formData.category?.toLowerCase()?.includes('dandiya') || formData.category?.toLowerCase()?.includes('garba')) ? (
+              /* DANDIYA DYNAMIC SLABS & VOLUME PRICING */
               <div className="mb-10">
-                <h2 className="text-2xl font-bold mb-6 text-cyan-300">
-                  Manage Marathon Distances
-                </h2>
+                <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-amber-400 flex items-center gap-2">
+                      🪩 Dandiya Dynamic Pricing (Flash Offer + Quantity Volume Discounts)
+                    </h2>
+                    <p className="text-gray-400 text-sm mt-1">
+                      Configure threshold-based Flash Offer (e.g. ₹249 for first 50 tickets). Once threshold is reached, Early Bird and Slab 2 auto-activate with volume discount tiers (1-4, 5-9, 10+ tickets).
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={loadDandiyaPasses}
+                    className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/50 px-4 py-2.5 rounded-2xl text-sm font-bold transition flex items-center gap-2 whitespace-nowrap"
+                  >
+                    ✨ Reset to Default Dandiya Slabs
+                  </button>
+                </div>
+
+                {/* PHASE 1: FLASH SALE OFFER */}
+                <div className="mb-6 p-6 rounded-3xl border-2 border-amber-500/40 bg-amber-500/5 relative">
+                  <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">⚡</span>
+                      <div>
+                        <h3 className="text-lg font-bold text-amber-300">Phase 1: Flash Offer (Threshold Limit)</h3>
+                        <p className="text-xs text-amber-200/70">Offer terminates automatically as soon as the ticket threshold is sold out, instantly activating Early Bird Offer.</p>
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer bg-black/40 px-3 py-1.5 rounded-xl border border-white/10 text-xs font-bold text-amber-300">
+                      <input 
+                        type="checkbox" 
+                        checked={dandiyaPricing.flash_sale.enabled} 
+                        onChange={(e) => updateDandiyaPhase('flash_sale', 'enabled', e.target.checked)} 
+                        className="w-4 h-4 accent-amber-500" 
+                      />
+                      Enable Flash Sale
+                    </label>
+                  </div>
+
+                  {dandiyaPricing.flash_sale.enabled && (
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-amber-300 text-xs font-bold mb-2">Flash Ticket Price (₹)</label>
+                        <input 
+                          type="number" 
+                          placeholder="249" 
+                          value={dandiyaPricing.flash_sale.price} 
+                          onChange={(e) => updateDandiyaPhase('flash_sale', 'price', e.target.value)} 
+                          className="w-full p-3.5 rounded-xl bg-black/50 border border-amber-500/30 text-white font-bold text-lg" 
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-amber-300 text-xs font-bold mb-2">Ticket Threshold (Max Tickets)</label>
+                        <input 
+                          type="number" 
+                          placeholder="50" 
+                          value={dandiyaPricing.flash_sale.threshold} 
+                          onChange={(e) => updateDandiyaPhase('flash_sale', 'threshold', e.target.value)} 
+                          className="w-full p-3.5 rounded-xl bg-black/50 border border-amber-500/30 text-white font-bold text-lg" 
+                        />
+                        <p className="text-[11px] text-gray-400 mt-1">Closes after {dandiyaPricing.flash_sale.threshold || 50} tickets</p>
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 text-xs mb-2">Flash Deadline (Optional)</label>
+                        <input 
+                          type="datetime-local" 
+                          value={dandiyaPricing.flash_sale.deadline} 
+                          onChange={(e) => updateDandiyaPhase('flash_sale', 'deadline', e.target.value)} 
+                          className="w-full p-3.5 rounded-xl bg-black/50 border border-white/10 text-white text-sm" 
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* PHASE 2: EARLY BIRD OFFER (SLAB 1) */}
+                <div className="mb-6 p-6 rounded-3xl border border-cyan-500/30 bg-cyan-950/10">
+                  <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">🐦</span>
+                      <div>
+                        <h3 className="text-lg font-bold text-cyan-300">Phase 2: Early Bird Offer (Slab 1)</h3>
+                        <p className="text-xs text-gray-400">Activates after Flash Offer. Set volume-based discounts per ticket count.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-cyan-300 text-xs font-bold mb-2">Slab 1 Ticket Limit (Threshold)</label>
+                      <input 
+                        type="number" 
+                        placeholder="150" 
+                        value={dandiyaPricing.slab1.threshold} 
+                        onChange={(e) => updateDandiyaPhase('slab1', 'threshold', e.target.value)} 
+                        className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-white font-medium" 
+                      />
+                      <p className="text-[11px] text-gray-400 mt-1">Applies up to {dandiyaPricing.slab1.threshold || 150} total registrations</p>
+                    </div>
+                    <div>
+                      <label className="block text-gray-400 text-xs mb-2">Early Bird Deadline (Optional)</label>
+                      <input 
+                        type="datetime-local" 
+                        value={dandiyaPricing.slab1.deadline} 
+                        onChange={(e) => updateDandiyaPhase('slab1', 'deadline', e.target.value)} 
+                        className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-white text-sm" 
+                      />
+                    </div>
+                  </div>
+
+                  {/* VOLUME DISCOUNT TIERS FOR SLAB 1 */}
+                  <div className="bg-black/30 p-4 rounded-2xl border border-white/5">
+                    <h4 className="text-xs font-bold text-cyan-300 uppercase tracking-wider mb-3">Volume Quantity Discount Matrix (Per Ticket Price)</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="p-3 bg-white/5 rounded-xl border border-white/10">
+                        <span className="text-xs text-gray-400 block mb-1">1 - 4 Tickets (Base Price &apos;a&apos;)</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-gray-400 text-sm">₹</span>
+                          <input 
+                            type="number" 
+                            placeholder="299" 
+                            value={dandiyaPricing.slab1.price_1_4} 
+                            onChange={(e) => updateDandiyaPhase('slab1', 'price_1_4', e.target.value)} 
+                            className="w-full bg-black/40 p-2 rounded-lg text-white font-bold text-lg border border-white/10" 
+                          />
+                        </div>
+                      </div>
+                      <div className="p-3 bg-white/5 rounded-xl border border-cyan-500/20">
+                        <span className="text-xs text-cyan-300 block mb-1">5 - 9 Tickets (Discounted)</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-cyan-400 text-sm">₹</span>
+                          <input 
+                            type="number" 
+                            placeholder="269" 
+                            value={dandiyaPricing.slab1.price_5_9} 
+                            onChange={(e) => updateDandiyaPhase('slab1', 'price_5_9', e.target.value)} 
+                            className="w-full bg-black/40 p-2 rounded-lg text-cyan-300 font-bold text-lg border border-cyan-500/30" 
+                          />
+                        </div>
+                      </div>
+                      <div className="p-3 bg-white/5 rounded-xl border border-emerald-500/20">
+                        <span className="text-xs text-emerald-300 block mb-1">10+ Tickets (Bulk Discount)</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-emerald-400 text-sm">₹</span>
+                          <input 
+                            type="number" 
+                            placeholder="239" 
+                            value={dandiyaPricing.slab1.price_10_plus} 
+                            onChange={(e) => updateDandiyaPhase('slab1', 'price_10_plus', e.target.value)} 
+                            className="w-full bg-black/40 p-2 rounded-lg text-emerald-300 font-bold text-lg border border-emerald-500/30" 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PHASE 3: NORMAL SLAB (SLAB 2) */}
+                <div className="mb-6 p-6 rounded-3xl border border-violet-500/30 bg-violet-950/10">
+                  <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">🎫</span>
+                      <div>
+                        <h3 className="text-lg font-bold text-violet-300">Phase 3: Normal Slab (Slab 2)</h3>
+                        <p className="text-xs text-gray-400">Activates automatically after Early Bird threshold is reached.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-violet-300 text-xs font-bold mb-2">Slab 2 Ticket Limit (Threshold)</label>
+                      <input 
+                        type="number" 
+                        placeholder="300" 
+                        value={dandiyaPricing.slab2.threshold} 
+                        onChange={(e) => updateDandiyaPhase('slab2', 'threshold', e.target.value)} 
+                        className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-white font-medium" 
+                      />
+                      <p className="text-[11px] text-gray-400 mt-1">Applies up to {dandiyaPricing.slab2.threshold || 300} total registrations</p>
+                    </div>
+                    <div>
+                      <label className="block text-gray-400 text-xs mb-2">Final Registration Closing Date & Time</label>
+                      <input 
+                        type="datetime-local" 
+                        value={dandiyaPricing.slab2.deadline} 
+                        onChange={(e) => {
+                          updateDandiyaPhase('slab2', 'deadline', e.target.value);
+                          setFormData(prev => ({ ...prev, slab2_deadline: e.target.value }));
+                        }} 
+                        className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-white text-sm" 
+                      />
+                    </div>
+                  </div>
+
+                  {/* VOLUME DISCOUNT TIERS FOR SLAB 2 */}
+                  <div className="bg-black/30 p-4 rounded-2xl border border-white/5">
+                    <h4 className="text-xs font-bold text-violet-300 uppercase tracking-wider mb-3">Volume Quantity Discount Matrix (Per Ticket Price)</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="p-3 bg-white/5 rounded-xl border border-white/10">
+                        <span className="text-xs text-gray-400 block mb-1">1 - 4 Tickets (Standard Normal Rate)</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-gray-400 text-sm">₹</span>
+                          <input 
+                            type="number" 
+                            placeholder="399" 
+                            value={dandiyaPricing.slab2.price_1_4} 
+                            onChange={(e) => updateDandiyaPhase('slab2', 'price_1_4', e.target.value)} 
+                            className="w-full bg-black/40 p-2 rounded-lg text-white font-bold text-lg border border-white/10" 
+                          />
+                        </div>
+                      </div>
+                      <div className="p-3 bg-white/5 rounded-xl border border-violet-500/20">
+                        <span className="text-xs text-violet-300 block mb-1">5 - 9 Tickets (Discounted)</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-violet-400 text-sm">₹</span>
+                          <input 
+                            type="number" 
+                            placeholder="359" 
+                            value={dandiyaPricing.slab2.price_5_9} 
+                            onChange={(e) => updateDandiyaPhase('slab2', 'price_5_9', e.target.value)} 
+                            className="w-full bg-black/40 p-2 rounded-lg text-violet-300 font-bold text-lg border border-violet-500/30" 
+                          />
+                        </div>
+                      </div>
+                      <div className="p-3 bg-white/5 rounded-xl border border-emerald-500/20">
+                        <span className="text-xs text-emerald-300 block mb-1">10+ Tickets (Bulk Discount)</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-emerald-400 text-sm">₹</span>
+                          <input 
+                            type="number" 
+                            placeholder="319" 
+                            value={dandiyaPricing.slab2.price_10_plus} 
+                            onChange={(e) => updateDandiyaPhase('slab2', 'price_10_plus', e.target.value)} 
+                            className="w-full bg-black/40 p-2 rounded-lg text-emerald-300 font-bold text-lg border border-emerald-500/30" 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PHASE 4: OPTIONAL SLAB 3 */}
+                <div className="mb-6 p-6 rounded-3xl border border-white/10 bg-white/5">
+                  <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">🔥</span>
+                      <div>
+                        <h3 className="text-lg font-bold text-pink-300">Phase 4: Optional Slab 3 (Last Chance / On-Spot)</h3>
+                        <p className="text-xs text-gray-400">Enable if you want a final emergency/on-spot pricing tier after Slab 2.</p>
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer bg-black/40 px-3 py-1.5 rounded-xl border border-white/10 text-xs font-bold text-pink-300">
+                      <input 
+                        type="checkbox" 
+                        checked={dandiyaPricing.slab3.enabled} 
+                        onChange={(e) => updateDandiyaPhase('slab3', 'enabled', e.target.checked)} 
+                        className="w-4 h-4 accent-pink-500" 
+                      />
+                      Enable Slab 3
+                    </label>
+                  </div>
+
+                  {dandiyaPricing.slab3.enabled && (
+                    <>
+                      <div className="grid md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <label className="block text-pink-300 text-xs font-bold mb-2">Slab 3 Ticket Limit (Threshold)</label>
+                          <input 
+                            type="number" 
+                            placeholder="500" 
+                            value={dandiyaPricing.slab3.threshold} 
+                            onChange={(e) => updateDandiyaPhase('slab3', 'threshold', e.target.value)} 
+                            className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-white font-medium" 
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-400 text-xs mb-2">Slab 3 Closing Deadline</label>
+                          <input 
+                            type="datetime-local" 
+                            value={dandiyaPricing.slab3.deadline} 
+                            onChange={(e) => updateDandiyaPhase('slab3', 'deadline', e.target.value)} 
+                            className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-white text-sm" 
+                          />
+                        </div>
+                      </div>
+                      <div className="bg-black/30 p-4 rounded-2xl border border-white/5">
+                        <h4 className="text-xs font-bold text-pink-300 uppercase tracking-wider mb-3">Volume Quantity Discount Matrix (Per Ticket Price)</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <div className="p-3 bg-white/5 rounded-xl border border-white/10">
+                            <span className="text-xs text-gray-400 block mb-1">1 - 4 Tickets</span>
+                            <input 
+                              type="number" 
+                              placeholder="499" 
+                              value={dandiyaPricing.slab3.price_1_4} 
+                              onChange={(e) => updateDandiyaPhase('slab3', 'price_1_4', e.target.value)} 
+                              className="w-full bg-black/40 p-2 rounded-lg text-white font-bold text-lg border border-white/10" 
+                            />
+                          </div>
+                          <div className="p-3 bg-white/5 rounded-xl border border-pink-500/20">
+                            <span className="text-xs text-pink-300 block mb-1">5 - 9 Tickets</span>
+                            <input 
+                              type="number" 
+                              placeholder="449" 
+                              value={dandiyaPricing.slab3.price_5_9} 
+                              onChange={(e) => updateDandiyaPhase('slab3', 'price_5_9', e.target.value)} 
+                              className="w-full bg-black/40 p-2 rounded-lg text-pink-300 font-bold text-lg border border-pink-500/30" 
+                            />
+                          </div>
+                          <div className="p-3 bg-white/5 rounded-xl border border-emerald-500/20">
+                            <span className="text-xs text-emerald-300 block mb-1">10+ Tickets</span>
+                            <input 
+                              type="number" 
+                              placeholder="399" 
+                              value={dandiyaPricing.slab3.price_10_plus} 
+                              onChange={(e) => updateDandiyaPhase('slab3', 'price_10_plus', e.target.value)} 
+                              className="w-full bg-black/40 p-2 rounded-lg text-emerald-300 font-bold text-lg border border-emerald-500/30" 
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* INCLUSIONS & NOTES */}
+                <div className="bg-black/30 p-5 rounded-2xl border border-white/10">
+                  <label className="block text-amber-300 text-sm font-bold mb-2">Pass Inclusions / Special Perks (Shown to attendee)</label>
+                  <input 
+                    type="text" 
+                    value={dandiyaPricing.inclusions} 
+                    onChange={(e) => setDandiyaPricing(prev => ({ ...prev, inclusions: e.target.value }))} 
+                    placeholder="e.g. Free pair of wooden Dandiya sticks included + Live DJ & Dhol setup." 
+                    className="w-full p-4 rounded-xl bg-black/50 border border-white/10 text-white text-sm" 
+                  />
+                </div>
+              </div>
+            ) : (formData.category?.toLowerCase()?.trim() === 'marathon' || customPricing.length > 0) ? (
+              <div className="mb-10">
+                <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-cyan-400 flex items-center gap-2">
+                      🏃 Manage Marathon Distances
+                    </h2>
+                    <p className="text-gray-400 text-sm mt-1">
+                      Add custom distances (e.g. 3k, 5k) and set their prices for Early Bird (Slab 1) and Normal (Slab 2) offers.
+                    </p>
+                  </div>
+                </div>
+
                 <div className="bg-black/20 p-6 rounded-3xl border border-cyan-500/30">
-                  <p className="text-gray-400 mb-6">
-                    Add custom distances (e.g. 3k, 5k) and set their prices for <strong className="text-cyan-300">Early Bird Offer</strong> (first 150 registrations) and <strong className="text-cyan-300">Normal Slab</strong> (next 150 registrations).
-                  </p>
-                  
                   {/* Registration Closing Deadline */}
                   <div className="mb-8 bg-black/40 p-5 rounded-2xl border border-white/5">
                     <label className="block text-gray-300 text-sm font-bold mb-2">Registration Closing Date & Time (Final Closing Date)</label>
@@ -822,26 +1307,30 @@ Tell attendees what makes your event special...
                       
                       <div className="grid md:grid-cols-3 gap-4 mb-6">
                         <div>
-                          <label className="block text-gray-400 text-sm mb-2">Distance Name</label>
-                          <input type="text" placeholder="e.g. 5k" value={item.name} onChange={(e) => updateCustomDistance(index, 'name', e.target.value)} className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-white" />
+                          <label className="block text-cyan-300 text-sm font-bold mb-2">Distance / Category Name</label>
+                          <input type="text" placeholder="e.g. 5k" value={item.name} onChange={(e) => updateCustomDistance(index, 'name', e.target.value)} className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-white font-medium" />
                         </div>
                         <div>
-                          <label className="block text-gray-400 text-sm mb-2">Early Bird Price (₹) [First 150 Registrations]</label>
+                          <label className="block text-gray-400 text-sm mb-2">Early Bird Price (₹) [Slab 1]</label>
                           <input type="number" placeholder="299" value={item.slab1} onChange={(e) => updateCustomDistance(index, 'slab1', e.target.value)} className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-white" />
                         </div>
                         <div>
-                          <label className="block text-gray-400 text-sm mb-2">Normal Slab Price (₹) [Next 150 Registrations]</label>
+                          <label className="block text-gray-400 text-sm mb-2">Normal Slab Price (₹) [Slab 2]</label>
                           <input type="number" placeholder="399" value={item.slab2} onChange={(e) => updateCustomDistance(index, 'slab2', e.target.value)} className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-white" />
                         </div>
                       </div>
 
-                      {/* ADVANCED INFO */}
+                      {/* DISTANCE ADVANCED INFO */}
                       <div className="bg-black/30 p-5 rounded-2xl border border-white/5">
                         <h4 className="text-cyan-300 text-sm font-bold mb-4 uppercase tracking-wider flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
                           Distance Details (For Pre-Registration View)
                         </h4>
                         <div className="grid md:grid-cols-3 gap-4">
+                          <div className="md:col-span-3">
+                            <label className="block text-gray-400 text-xs mb-2">Additional Instructions / Bib Collection</label>
+                            <input type="text" placeholder="e.g. Bib Collection at Expo Center on Oct 10" value={item.additional_info || ''} onChange={(e) => updateCustomDistance(index, 'additional_info', e.target.value)} className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-white text-sm" />
+                          </div>
                           <div>
                             <label className="block text-gray-400 text-xs mb-2">Bib Collection Details</label>
                             <input type="text" placeholder="e.g. Oct 10th, Expo Center" value={item.bib_collection || ''} onChange={(e) => updateCustomDistance(index, 'bib_collection', e.target.value)} className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-white text-sm" />
@@ -861,10 +1350,6 @@ Tell attendees what makes your event special...
                           <div className="md:col-span-2">
                             <label className="block text-gray-400 text-xs mb-2">Route Map Image URL</label>
                             <input type="text" placeholder="https://example.com/route.jpg" value={item.route_map_url || ''} onChange={(e) => updateCustomDistance(index, 'route_map_url', e.target.value)} className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-white text-sm" />
-                          </div>
-                          <div className="md:col-span-3">
-                            <label className="block text-gray-400 text-xs mb-2">Additional Info</label>
-                            <textarea rows={2} placeholder="Any extra instructions..." value={item.additional_info || ''} onChange={(e) => updateCustomDistance(index, 'additional_info', e.target.value)} className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-white text-sm" />
                           </div>
                         </div>
                       </div>

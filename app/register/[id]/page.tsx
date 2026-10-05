@@ -38,7 +38,8 @@ export default function RegisterPage({
     solo: 0,
     couple: 0,
     group: 0,
-    bulk: 0
+    bulk: 0,
+    dandiya: 1
   });
 
   const [participants, setParticipants] = useState<any[]>([]);
@@ -109,6 +110,31 @@ export default function RegisterPage({
     setCouponMessage(null);
   };
 
+  const getDandiyaConfig = (evt: any) => {
+    if (!evt || !evt.custom_pricing) return null;
+    try {
+      const parsed = typeof evt.custom_pricing === 'string' ? JSON.parse(evt.custom_pricing) : evt.custom_pricing;
+      if (parsed && (parsed.type === 'dandiya_tiered' || parsed.flash_sale)) {
+        return parsed;
+      }
+    } catch (e) {
+      return null;
+    }
+    return null;
+  };
+
+  const dandiyaConfig = getDandiyaConfig(event);
+  const isDandiyaTiered = Boolean(dandiyaConfig);
+
+  const hasCustomPricing = Boolean(!isDandiyaTiered && event?.custom_pricing && (() => {
+    try {
+      const parsed = typeof event.custom_pricing === 'string' ? JSON.parse(event.custom_pricing) : event.custom_pricing;
+      return Array.isArray(parsed) && parsed.length > 0;
+    } catch (e) {
+      return false;
+    }
+  })());
+
   // Dynamic price calculator
   useEffect(() => {
     if (!event) return;
@@ -116,9 +142,35 @@ export default function RegisterPage({
     let amount = 0;
     let entries = 0;
 
-    const isMarathon = event.category?.toLowerCase()?.trim() === 'marathon';
+    const dandiyaCfg = getDandiyaConfig(event);
 
-    if (isMarathon && event.custom_pricing) {
+    if (dandiyaCfg) {
+      const qty = Math.max(1, quantities.dandiya || 1);
+      let unitPrice = 0;
+
+      if (appliedCoupon && Number(appliedCoupon.price) >= 0) {
+        unitPrice = Number(appliedCoupon.price);
+      } else if (activeSlabKey === 'flash_sale') {
+        unitPrice = Number(dandiyaCfg.flash_sale?.price) || 249;
+      } else {
+        const currentSlab = dandiyaCfg[activeSlabKey] || dandiyaCfg.slab1 || {};
+        if (qty >= 10) {
+          unitPrice = Number(currentSlab.price_10_plus) || (Number(currentSlab.price_1_4) || 299);
+        } else if (qty >= 5) {
+          unitPrice = Number(currentSlab.price_5_9) || (Number(currentSlab.price_1_4) || 299);
+        } else {
+          unitPrice = Number(currentSlab.price_1_4) || 299;
+        }
+      }
+
+      amount = unitPrice * qty;
+      entries = qty;
+      setTotalAmount(amount);
+      setAllowedEntries(entries);
+      return;
+    }
+
+    if (hasCustomPricing) {
       try {
         const customPricing = typeof event.custom_pricing === 'string' 
           ? JSON.parse(event.custom_pricing) 
@@ -130,7 +182,13 @@ export default function RegisterPage({
             ? Number(appliedCoupon.price)
             : (Number(d[activeSlabKey]) || 0);
           amount += price * qty;
-          entries += qty; // 1 entry per marathon ticket
+          
+          let passEntries = 1;
+          const lower = d.name?.toLowerCase() || '';
+          if (lower.includes('couple')) passEntries = 2;
+          else if (lower.includes('group') || lower.includes('5')) passEntries = 5;
+
+          entries += qty * passEntries;
         });
       } catch (e) {
         console.error("Error parsing custom pricing", e);
@@ -155,7 +213,7 @@ export default function RegisterPage({
 
     setTotalAmount(amount);
     setAllowedEntries(entries);
-  }, [quantities, activeSlabKey, event, appliedCoupon]);
+  }, [quantities, activeSlabKey, event, appliedCoupon, hasCustomPricing]);
 
   const [paymentProof, setPaymentProof] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -181,10 +239,56 @@ export default function RegisterPage({
       const evt = response.data.event;
       setEvent(evt);
 
-      // Determine Slab and Registration Status (2 Slabs with 150 Registration Thresholds or 12:00 AM IST Cutoff)
+      const dandiyaCfg = getDandiyaConfig(evt);
       const now = new Date().getTime();
-      const earlyBirdCutoff = evt.slab1_deadline ? new Date(evt.slab1_deadline).getTime() : new Date('2026-08-10T00:00:00+05:30').getTime();
       const totalRegs = Number(evt.total_registrations) || 0;
+
+      if (dandiyaCfg) {
+        let slabKey = 'slab1';
+        let slabName = "Early Bird Offer";
+        let registrationClosed = false;
+
+        const flash = dandiyaCfg.flash_sale || {};
+        const s1 = dandiyaCfg.slab1 || {};
+        const s2 = dandiyaCfg.slab2 || {};
+        const s3 = dandiyaCfg.slab3 || {};
+
+        const flashLimit = Number(flash.threshold) || 50;
+        const s1Limit = Number(s1.threshold) || 150;
+        const s2Limit = Number(s2.threshold) || 300;
+        const s3Limit = Number(s3.threshold) || 500;
+
+        const flashDeadlinePassed = flash.deadline ? now > new Date(flash.deadline).getTime() : false;
+        const s1DeadlinePassed = s1.deadline ? now > new Date(s1.deadline).getTime() : false;
+        const s2DeadlinePassed = s2.deadline ? now > new Date(s2.deadline).getTime() : false;
+        const s3DeadlinePassed = s3.deadline ? now > new Date(s3.deadline).getTime() : false;
+
+        if (evt.event_status === 'CLOSED' || evt.is_closed) {
+          registrationClosed = true;
+        } else if (flash.enabled !== false && totalRegs < flashLimit && !flashDeadlinePassed) {
+          slabKey = 'flash_sale';
+          slabName = "⚡ Flash Offer";
+        } else if (totalRegs < s1Limit && !s1DeadlinePassed) {
+          slabKey = 'slab1';
+          slabName = "🐦 Early Bird Offer";
+        } else if (totalRegs < s2Limit && !s2DeadlinePassed) {
+          slabKey = 'slab2';
+          slabName = "🎫 Normal Slab";
+        } else if (s3.enabled && totalRegs < s3Limit && !s3DeadlinePassed) {
+          slabKey = 'slab3';
+          slabName = s3.name || "🔥 Last Chance Slab";
+        } else {
+          registrationClosed = true;
+        }
+
+        setActiveSlabKey(slabKey);
+        setActiveSlabName(slabName);
+        setIsClosed(registrationClosed);
+        return;
+      }
+
+      // Determine Slab and Registration Status (2 Slabs with 150 Registration Thresholds or 12:00 AM IST Cutoff)
+      const earlyBirdCutoff = evt.slab1_deadline ? new Date(evt.slab1_deadline).getTime() : new Date('2026-08-10T00:00:00+05:30').getTime();
 
       let slabKey = 'slab1';
       let slabName = "Early Bird Offer";
@@ -336,9 +440,13 @@ export default function RegisterPage({
 
       const tickets: string[] = [];
       const isMarathon = event.category?.toLowerCase()?.trim() === 'marathon';
+      const dandiyaCfg = getDandiyaConfig(event);
       
       if (isMarathon) {
         participants.forEach(p => tickets.push(p.ticket_type));
+      } else if (dandiyaCfg) {
+        const qty = Math.max(1, quantities.dandiya || 1);
+        tickets.push(`Dandiya Pass (${qty} ${qty > 1 ? 'Entries' : 'Entry'})`);
       } else {
         for (let i = 0; i < quantities.solo; i++) tickets.push('solo');
         for (let i = 0; i < quantities.couple; i++) tickets.push('couple');
@@ -414,9 +522,13 @@ export default function RegisterPage({
 
       const tickets: string[] = [];
       const isMarathon = event.category?.toLowerCase()?.trim() === 'marathon';
+      const dandiyaCfg = getDandiyaConfig(event);
       
       if (isMarathon) {
         participants.forEach(p => tickets.push(p.ticket_type));
+      } else if (dandiyaCfg) {
+        const qty = Math.max(1, quantities.dandiya || 1);
+        tickets.push(`Dandiya Pass (${qty} ${qty > 1 ? 'Entries' : 'Entry'})`);
       } else {
         for (let i = 0; i < quantities.solo; i++) tickets.push('solo');
         for (let i = 0; i < quantities.couple; i++) tickets.push('couple');
@@ -626,10 +738,340 @@ export default function RegisterPage({
         </div>
       )}
 
-      {event?.category?.toLowerCase()?.trim() === 'marathon' && step === 1 ? (
+      {isDandiyaTiered && step === 1 ? (
+        <div className="bg-white/5 border border-white/10 backdrop-blur-xl rounded-3xl p-6 sm:p-10 w-full max-w-3xl shadow-2xl">
+          <div className="text-center mb-8">
+            <span className="inline-block px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-gradient-to-r from-amber-500 to-rose-500 text-black shadow-lg mb-3">
+              ✨ Dandiya Raas Ticketing
+            </span>
+            <h1 className="text-3xl sm:text-5xl font-black bg-gradient-to-r from-amber-200 via-rose-300 to-amber-400 bg-clip-text text-transparent">
+              {event.title}
+            </h1>
+            <p className="text-gray-400 mt-2 text-sm sm:text-base">
+              Customize and select your passes. Dynamic discounts automatically unlock with group bookings!
+            </p>
+          </div>
+
+          {/* ACTIVE OFFER BANNER */}
+          {activeSlabKey === 'flash_sale' ? (
+            <div className="relative overflow-hidden bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-rose-500/20 border-2 border-amber-500/60 rounded-3xl p-6 mb-8 text-left shadow-[0_0_40px_rgba(245,158,11,0.25)]">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-3 py-1 bg-amber-500 text-black font-black text-xs uppercase tracking-wider rounded-full animate-pulse">
+                      ⚡ Flash Sale Live
+                    </span>
+                    <span className="text-xs text-amber-300 font-bold">Limited Time Initial Drop</span>
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-black text-white">
+                    Flat <span className="text-amber-400">₹{dandiyaConfig.flash_sale?.price || 249}</span> per Ticket!
+                  </h2>
+                  <p className="text-amber-200/90 text-sm mt-1 max-w-md">
+                    Exclusive launch offer for the first {dandiyaConfig.flash_sale?.threshold || 50} tickets. As soon as ticket #{dandiyaConfig.flash_sale?.threshold || 50} sells, the Early Bird tier starts!
+                  </p>
+                </div>
+                <div className="bg-black/50 border border-amber-500/40 rounded-2xl p-4 text-center min-w-[170px] self-center md:self-auto">
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Passes Sold</p>
+                  <p className="text-2xl font-black text-amber-300 my-1">
+                    {Number(event.total_registrations) || 0} / {dandiyaConfig.flash_sale?.threshold || 50}
+                  </p>
+                  <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="bg-gradient-to-r from-amber-400 to-rose-400 h-full rounded-full transition-all duration-500" 
+                      style={{ width: `${Math.min(100, ((Number(event.total_registrations) || 0) / (Number(dandiyaConfig.flash_sale?.threshold) || 50)) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-amber-400/80 font-medium mt-1">
+                    {Math.max(0, (Number(dandiyaConfig.flash_sale?.threshold) || 50) - (Number(event.total_registrations) || 0))} tickets remaining!
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : activeSlabKey === 'slab1' ? (
+            <div className="bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-cyan-500/20 border-2 border-emerald-500/50 rounded-3xl p-6 mb-8 text-left shadow-[0_0_35px_rgba(16,185,129,0.2)]">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-3 py-1 bg-emerald-500 text-black font-black text-xs uppercase tracking-wider rounded-full">
+                      🐦 Early Bird Offer Active
+                    </span>
+                    <span className="text-xs text-emerald-300 font-bold">Phase 1 Volume Pricing</span>
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-black text-white">
+                    Early Bird Passes Available
+                  </h2>
+                  <p className="text-emerald-200/90 text-sm mt-1 max-w-md">
+                    Take advantage of discounted rates with additional volume discounts on 5+ and 10+ ticket purchases. Valid up to {dandiyaConfig.slab1?.threshold || 150} tickets.
+                  </p>
+                </div>
+                <div className="bg-black/50 border border-emerald-500/40 rounded-2xl p-4 text-center min-w-[160px] self-center md:self-auto">
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Early Bird Capacity</p>
+                  <p className="text-2xl font-black text-emerald-300 my-1">
+                    {Number(event.total_registrations) || 0} / {dandiyaConfig.slab1?.threshold || 150}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : activeSlabKey === 'slab2' ? (
+            <div className="bg-gradient-to-r from-blue-500/20 via-indigo-500/20 to-violet-500/20 border-2 border-blue-500/50 rounded-3xl p-6 mb-8 text-left shadow-[0_0_35px_rgba(59,130,246,0.2)]">
+              <div>
+                <span className="px-3 py-1 bg-blue-500 text-white font-black text-xs uppercase tracking-wider rounded-full mb-2 inline-block">
+                  🎫 Normal Slab Active
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-black text-white mt-1">
+                  General Booking Phase
+                </h2>
+                <p className="text-blue-200/90 text-sm mt-1">
+                  Standard passes with unlocked group volume discounts. Book your passes below!
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-2 border-purple-500/50 rounded-3xl p-6 mb-8 text-left shadow-[0_0_35px_rgba(168,85,247,0.2)]">
+              <div>
+                <span className="px-3 py-1 bg-purple-500 text-white font-black text-xs uppercase tracking-wider rounded-full mb-2 inline-block">
+                  🔥 Last Chance Slab Active
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-black text-white mt-1">
+                  Final Registration Phase
+                </h2>
+                <p className="text-purple-200/90 text-sm mt-1">
+                  Last remaining passes for the event. Reserve before registrations close!
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* VOLUME PRICING MATRIX DISPLAY */}
+          {(() => {
+            const currentSlab = dandiyaConfig[activeSlabKey] || dandiyaConfig.slab1 || {};
+            const p1 = Number(currentSlab.price_1_4) || 299;
+            const p5 = Number(currentSlab.price_5_9) || 269;
+            const p10 = Number(currentSlab.price_10_plus) || 239;
+            const currentQty = Math.max(1, quantities.dandiya || 1);
+
+            if (activeSlabKey === 'flash_sale') {
+              return null;
+            }
+
+            return (
+              <div className="mb-8">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-amber-300 mb-3 flex items-center gap-2">
+                  <span>📊 Volume Pricing Matrix ({activeSlabName})</span>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {/* Tier 1 */}
+                  <div className={`p-4 rounded-2xl border-2 transition-all ${currentQty >= 1 && currentQty <= 4 ? 'bg-amber-500/20 border-amber-400 ring-2 ring-amber-400/40' : 'bg-black/30 border-white/10 opacity-70'}`}>
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="text-xs font-black uppercase tracking-wider text-gray-300">1 - 4 Tickets</span>
+                      {currentQty >= 1 && currentQty <= 4 && (
+                        <span className="text-[10px] bg-amber-400 text-black font-black px-2 py-0.5 rounded-full">Active</span>
+                      )}
+                    </div>
+                    <div className="text-2xl font-black text-white">₹{p1} <span className="text-xs font-normal text-gray-400">/ pass</span></div>
+                    <p className="text-xs text-gray-400 mt-1">Standard Individual Rate</p>
+                  </div>
+
+                  {/* Tier 2 */}
+                  <div className={`p-4 rounded-2xl border-2 transition-all ${currentQty >= 5 && currentQty <= 9 ? 'bg-amber-500/20 border-amber-400 ring-2 ring-amber-400/40' : 'bg-black/30 border-white/10 opacity-70'}`}>
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="text-xs font-black uppercase tracking-wider text-emerald-300">5 - 9 Tickets</span>
+                      {currentQty >= 5 && currentQty <= 9 ? (
+                        <span className="text-[10px] bg-amber-400 text-black font-black px-2 py-0.5 rounded-full">Active</span>
+                      ) : (
+                        <span className="text-[10px] bg-emerald-500/30 text-emerald-300 font-bold px-2 py-0.5 rounded-full">Save ₹{p1 - p5}/ea</span>
+                      )}
+                    </div>
+                    <div className="text-2xl font-black text-emerald-300">₹{p5} <span className="text-xs font-normal text-gray-400">/ pass</span></div>
+                    <p className="text-xs text-gray-400 mt-1">Group Booking Discount</p>
+                  </div>
+
+                  {/* Tier 3 */}
+                  <div className={`p-4 rounded-2xl border-2 transition-all ${currentQty >= 10 ? 'bg-amber-500/20 border-amber-400 ring-2 ring-amber-400/40' : 'bg-black/30 border-white/10 opacity-70'}`}>
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="text-xs font-black uppercase tracking-wider text-cyan-300">10+ Tickets</span>
+                      {currentQty >= 10 ? (
+                        <span className="text-[10px] bg-amber-400 text-black font-black px-2 py-0.5 rounded-full">Active</span>
+                      ) : (
+                        <span className="text-[10px] bg-cyan-500/30 text-cyan-300 font-bold px-2 py-0.5 rounded-full">Best Value</span>
+                      )}
+                    </div>
+                    <div className="text-2xl font-black text-cyan-300">₹{p10} <span className="text-xs font-normal text-gray-400">/ pass</span></div>
+                    <p className="text-xs text-gray-400 mt-1">Mega Bulk / Family Pass</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* QUANTITY CONTROLLER */}
+          <div className="bg-black/40 border border-white/10 rounded-3xl p-6 sm:p-8 mb-8 text-center">
+            <label className="block text-sm font-bold uppercase tracking-wider text-gray-300 mb-4">
+              Select Number of Dandiya Passes
+            </label>
+            <div className="flex items-center justify-center gap-5 sm:gap-8 mb-6">
+              <button
+                type="button"
+                onClick={() => setQuantities({ ...quantities, dandiya: Math.max(1, (quantities.dandiya || 1) - 1) })}
+                className="w-14 h-14 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-3xl font-black text-white transition border border-white/10 shadow-lg"
+              >
+                -
+              </button>
+              <div className="min-w-[120px]">
+                <span className="text-5xl sm:text-6xl font-black text-amber-300 tracking-tight">
+                  {quantities.dandiya || 1}
+                </span>
+                <p className="text-xs uppercase font-bold text-gray-400 tracking-widest mt-1">
+                  {(quantities.dandiya || 1) > 1 ? 'Passes' : 'Pass'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQuantities({ ...quantities, dandiya: Math.min(50, (quantities.dandiya || 1) + 1) })}
+                className="w-14 h-14 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-3xl font-black text-white transition border border-white/10 shadow-lg"
+              >
+                +
+              </button>
+            </div>
+
+            {/* QUICK SELECTION PILLS */}
+            <div className="flex flex-wrap justify-center gap-2 pt-2 border-t border-white/10">
+              <span className="text-xs text-gray-400 font-bold self-center mr-2">Quick Pick:</span>
+              {[
+                { qty: 1, label: '1 Ticket' },
+                { qty: 2, label: '2 Tickets (Couple)' },
+                { qty: 5, label: '5 Tickets (Group)' },
+                { qty: 10, label: '10 Tickets (Bulk)' }
+              ].map(item => (
+                <button
+                  key={item.qty}
+                  type="button"
+                  onClick={() => setQuantities({ ...quantities, dandiya: item.qty })}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition border ${
+                    (quantities.dandiya || 1) === item.qty
+                      ? 'bg-amber-500 text-black border-amber-400 font-black shadow-md'
+                      : 'bg-white/5 hover:bg-white/10 text-gray-300 border-white/10'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* INCLUSIONS NOTE */}
+          <div className="bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-purple-500/10 border border-white/10 rounded-2xl p-4 mb-8 flex items-center gap-3">
+            <span className="text-2xl">🪩</span>
+            <div className="text-left">
+              <p className="text-xs font-bold text-amber-300 uppercase tracking-wider">Pass Inclusions</p>
+              <p className="text-sm text-gray-200">
+                {dandiyaConfig.inclusions || 'Dandiya Sticks + Entry Pass + Refreshment Coupon Included'}
+              </p>
+            </div>
+          </div>
+
+          {/* PARTNER / COUPON CODE BOX */}
+          {(() => {
+            const hasCoupons = (() => {
+              if (!event || !event.coupons) return false;
+              try {
+                const parsed = typeof event.coupons === 'string' ? JSON.parse(event.coupons) : event.coupons;
+                return Array.isArray(parsed) && parsed.length > 0;
+              } catch (e) {
+                return false;
+              }
+            })();
+
+            if (!hasCoupons) return null;
+
+            return (
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-8 text-left">
+                <label className="block text-sm font-bold text-amber-300 mb-2">Have a Partner / Coupon Code?</label>
+                <div className="flex gap-3">
+                  <input 
+                    type="text" 
+                    placeholder="Enter code" 
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                    className="flex-1 p-3.5 rounded-xl bg-black/40 border border-white/10 text-white uppercase tracking-wider font-bold text-sm focus:border-amber-500 outline-none"
+                  />
+                  <button 
+                    type="button"
+                    onClick={handleApplyCoupon}
+                    className="bg-amber-500 hover:bg-amber-600 text-black font-bold px-6 py-3.5 rounded-xl transition shadow-md"
+                  >
+                    Apply
+                  </button>
+                </div>
+                {couponMessage && (
+                  <div className={`mt-3 p-3 rounded-xl text-sm font-bold flex items-center justify-between ${couponMessage.type === 'success' ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'}`}>
+                    <span>{couponMessage.text}</span>
+                    {appliedCoupon && (
+                      <button 
+                        type="button" 
+                        onClick={handleRemoveCoupon} 
+                        className="text-xs underline hover:text-white ml-2"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* ORDER TOTAL CARD */}
+          <div className="bg-gradient-to-br from-amber-500/20 via-rose-500/10 to-purple-500/20 border border-amber-500/30 rounded-3xl p-6 mb-8 text-left">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-gray-300 text-sm">Passes Selected</span>
+              <span className="font-bold text-white text-base">
+                {quantities.dandiya || 1} x Dandiya Passes
+              </span>
+            </div>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-gray-300 text-sm">Unit Price per Pass</span>
+              <span className="font-bold text-amber-300 text-base">
+                ₹{(totalAmount / Math.max(1, quantities.dandiya || 1)).toFixed(0)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center pt-3 border-t border-white/10 mt-3">
+              <div>
+                <span className="text-xs uppercase tracking-wider text-gray-400 font-bold block">Total Payable</span>
+                <span className="text-xs text-amber-200/80">Valid for {allowedEntries} Entry Passes</span>
+              </div>
+              <span className="text-4xl font-black text-amber-400">
+                ₹{totalAmount}
+              </span>
+            </div>
+          </div>
+
+          {/* PROCEED BUTTON */}
+          <button
+            type="button"
+            onClick={() => {
+              if (totalAmount === 0 || allowedEntries === 0) {
+                return alert('Please select at least 1 ticket to continue.');
+              }
+              setStep(2);
+            }}
+            className="w-full bg-gradient-to-r from-amber-500 via-rose-500 to-amber-500 hover:from-amber-600 hover:to-rose-600 text-black font-black text-xl py-5 rounded-2xl transition shadow-[0_0_35px_rgba(245,158,11,0.35)] hover:scale-[1.01]"
+          >
+            Proceed to Participant Details →
+          </button>
+        </div>
+      ) : hasCustomPricing && step === 1 ? (
         <div className="bg-white/5 border border-white/10 backdrop-blur-xl rounded-3xl p-10 w-full max-w-3xl shadow-2xl">
-          <h1 className="text-4xl md:text-5xl font-black mb-3 text-cyan-300">Select Your Distance</h1>
-          <p className="text-gray-400 mb-8 text-lg">Choose a category to view race details and proceed to registration.</p>
+          <h1 className="text-4xl md:text-5xl font-black mb-3 text-amber-300">
+            {event?.category?.toLowerCase()?.includes('dandiya') || event?.category?.toLowerCase()?.includes('garba') 
+              ? '🪩 Select Your Dandiya Passes' 
+              : event?.category?.toLowerCase()?.trim() === 'marathon' 
+                ? '🏃 Select Your Distance' 
+                : '🎫 Select Your Ticket Passes'}
+          </h1>
+          <p className="text-gray-400 mb-8 text-lg">
+            Choose your desired pass types below to proceed to registration.
+          </p>
           
           <div className="space-y-6 mb-8">
             {event.custom_pricing ? (() => {
@@ -639,9 +1081,10 @@ export default function RegisterPage({
                   const price = appliedCoupon && Number(appliedCoupon.price) >= 0
                     ? Number(appliedCoupon.price)
                     : (Number(d[activeSlabKey]) || 0);
+                  const passDetail = d.additional_info || (d.name.toLowerCase().includes('couple') ? 'Entry for 2 Members' : d.name.toLowerCase().includes('group') ? 'Group Pass' : '1 Member');
                   return (
                     <div key={d.name} className="p-6 md:p-8 rounded-3xl border-2 border-white/10 bg-black/40 mb-4">
-                      {renderCounter(d.name, d.name, "1 Member", price)}
+                      {renderCounter(d.name, d.name, passDetail, price)}
                     </div>
                   );
                 });
@@ -926,20 +1369,44 @@ export default function RegisterPage({
           <p className="text-gray-400 mb-2">Active Pricing Tier: <span className="text-cyan-300 font-bold">{activeSlabName}</span></p>
         </div>
         <div className="mb-8">
-          {event.category?.toLowerCase()?.trim() === 'marathon' && event.custom_pricing ? (
-            <div className="bg-cyan-900/20 border border-cyan-500/30 p-5 rounded-2xl flex justify-between items-center">
+          {isDandiyaTiered ? (
+            <div className="bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-purple-500/10 border border-amber-500/40 p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
-                <p className="text-cyan-300 font-bold mb-1">Tickets in Cart</p>
-                <h3 className="text-2xl font-black text-white">
-                  {Object.entries(quantities).filter(([_, v]) => v > 0).map(([k, v]) => `${v}x ${k}`).join(', ')}
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-black uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    {activeSlabName}
+                  </span>
+                  <span className="text-xs text-gray-400">1 QR Pass • {allowedEntries} Allowed Entries</span>
+                </div>
+                <h3 className="text-xl font-black text-white">
+                  {quantities.dandiya || 1} x Dandiya Passes
+                </h3>
+                <p className="text-sm text-gray-300 mt-0.5">
+                  Rate: <span className="text-amber-300 font-bold">₹{(totalAmount / Math.max(1, quantities.dandiya || 1)).toFixed(0)}</span> per pass • Total: <span className="text-amber-300 font-bold">₹{totalAmount}</span>
+                </p>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setStep(1)}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-sm font-bold transition flex items-center gap-1.5"
+              >
+                ← Change Passes
+              </button>
+            </div>
+          ) : hasCustomPricing ? (
+            <div className="bg-amber-950/30 border border-amber-500/40 p-5 rounded-2xl flex justify-between items-center">
+              <div>
+                <p className="text-amber-300 font-bold mb-1">Passes Selected</p>
+                <h3 className="text-xl font-black text-white">
+                  {Object.entries(quantities).filter(([_, v]) => v > 0).map(([k, v]) => `${v}x ${k}`).join(', ') || 'No pass selected'}
                 </h3>
               </div>
               <button 
                 type="button" 
                 onClick={() => setStep(1)}
-                className="text-cyan-400 hover:text-cyan-300 underline text-sm font-bold"
+                className="text-amber-400 hover:text-amber-300 underline text-sm font-bold"
               >
-                Change
+                Change Passes
               </button>
             </div>
           ) : (
