@@ -834,7 +834,7 @@ export default function RegisterPage({
         <div className="bg-white/5 border border-white/10 backdrop-blur-xl rounded-3xl p-6 sm:p-10 w-full max-w-3xl shadow-2xl">
           <div className="text-center mb-8">
             <span className="inline-block px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-gradient-to-r from-amber-500 to-rose-500 text-black shadow-lg mb-3">
-              ✨ Dandiya Raas Ticketing
+              ✨ Dandiya - 2026 Ticketing
             </span>
             <h1 className="text-3xl sm:text-5xl font-black bg-gradient-to-r from-amber-200 via-rose-300 to-amber-400 bg-clip-text text-transparent">
               {event.title}

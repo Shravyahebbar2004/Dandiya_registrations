@@ -149,7 +149,7 @@ export default function EventPage({
         <div className="text-center mb-4 sm:mb-5">
           <span className="inline-flex items-center gap-2 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-white/[0.04] text-amber-300 border border-amber-500/25 backdrop-blur-md">
             <span>✨</span>
-            <span>{isDandiyaEvent ? 'Dandiya Raas 2026 • 12th Edition' : event.category || 'Featured Event'}</span>
+            <span>{isDandiyaEvent ? 'Dandiya - 2026' : event.category || 'Featured Event'}</span>
           </span>
         </div>
 
@@ -217,7 +217,7 @@ export default function EventPage({
             </div>
             <div className="p-4 rounded-2xl bg-white/[0.025] border border-white/10 backdrop-blur-lg text-center hover:border-rose-400/30 transition">
               <span className="text-2xl sm:text-3xl block mb-1">💃</span>
-              <p className="font-bold text-white text-xs sm:text-sm">Garba & Raas</p>
+              <p className="font-bold text-white text-xs sm:text-sm">Garba & Dandiya</p>
               <p className="text-[11px] text-gray-400">Traditional Dandiya night</p>
             </div>
             <div className="p-4 rounded-2xl bg-white/[0.025] border border-white/10 backdrop-blur-lg text-center hover:border-amber-400/30 transition">
