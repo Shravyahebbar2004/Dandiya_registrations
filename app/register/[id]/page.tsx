@@ -45,6 +45,20 @@ export default function RegisterPage({
   });
 
   const [participants, setParticipants] = useState<any[]>([]);
+  const [additionalParticipants, setAdditionalParticipants] = useState<string[]>([]);
+
+  useEffect(() => {
+    const extraCount = Math.max(0, allowedEntries - 1);
+    setAdditionalParticipants(prev => {
+      const next = [...prev];
+      if (next.length < extraCount) {
+        while (next.length < extraCount) next.push('');
+      } else if (next.length > extraCount) {
+        return next.slice(0, extraCount);
+      }
+      return next;
+    });
+  }, [allowedEntries]);
 
   const [step, setStep] = useState(1);
 
@@ -440,6 +454,27 @@ export default function RegisterPage({
       return;
     }
 
+    if (!isMarathon) {
+      if (!formData.club_affiliation) {
+        alert("Please select your Category / Affiliation (Rotaract Club, Organization, College, or Public)!");
+        return;
+      }
+      if (formData.club_affiliation !== 'Public' && !formData.custom_club_name?.trim()) {
+        const fieldName = formData.club_affiliation === 'Rotaract Club' ? 'Rotaract Club' :
+                          formData.club_affiliation === 'Organization' ? 'Organization / Company' : 'College / Institution';
+        alert(`Please enter your ${fieldName} Name!`);
+        return;
+      }
+      if (allowedEntries > 1) {
+        for (let i = 0; i < allowedEntries - 1; i++) {
+          if (!additionalParticipants[i] || !additionalParticipants[i].trim()) {
+            alert(`Please enter Full Name for Ticket #${i + 2}! Filling names of all participants is mandatory.`);
+            return;
+          }
+        }
+      }
+    }
+
     try {
       setSubmitting(true);
 
@@ -476,29 +511,49 @@ export default function RegisterPage({
         return;
       }
 
-      // PREPARE DRAFT REGISTRATION DATA
-      const draftData = new FormData();
-      draftData.append('full_name', formData.full_name || (isMarathon && participants.length > 0 ? participants[0].full_name : 'Group Purchaser'));
-      draftData.append('email', formData.email.trim());
-      draftData.append('phone_number', parsePhone(formData.phone_number));
-      draftData.append('utr', formData.utr.trim());
-      draftData.append('emergency_contact_name', isMarathon ? formData.emergency_contact_name : '');
-      draftData.append('emergency_contact', isMarathon ? parsePhone(formData.emergency_contact) : '');
-      draftData.append('blood_group', isMarathon ? (formData.blood_group || '') : '');
-      draftData.append('gender', isMarathon ? (formData.gender || '') : '');
-
       let finalClubAffiliation = '';
       if (isMarathon) {
         finalClubAffiliation = formData.club_affiliation || '';
         if ((formData.club_affiliation === 'Rotaract Club' || formData.club_affiliation === 'Run Club') && formData.custom_club_name?.trim()) {
           finalClubAffiliation = `${formData.club_affiliation} (${formData.custom_club_name.trim()})`;
         }
+      } else {
+        if (formData.club_affiliation === 'Public') {
+          finalClubAffiliation = 'Public';
+        } else if (formData.custom_club_name?.trim()) {
+          finalClubAffiliation = `${formData.club_affiliation} (${formData.custom_club_name.trim()})`;
+        } else {
+          finalClubAffiliation = formData.club_affiliation || '';
+        }
       }
+
+      const otherAttendees = additionalParticipants.map(n => n.trim()).filter(Boolean);
+      const otherAttendeesStr = otherAttendees.join(', ');
+      const combinedFullName = (!isMarathon && otherAttendeesStr)
+        ? `${formData.full_name.trim()} (+${otherAttendeesStr})`
+        : (formData.full_name?.trim() || (isMarathon && participants.length > 0 ? participants[0].full_name : 'Primary Registrant'));
+
+      const nonMarathonParticipants = [
+        { full_name: formData.full_name.trim(), ticket_type: 'Primary Ticket' },
+        ...otherAttendees.map((name, idx) => ({
+          full_name: name,
+          ticket_type: `Ticket #${idx + 2}`
+        }))
+      ];
+
+      // PREPARE DRAFT REGISTRATION DATA
+      const draftData = new FormData();
+      draftData.append('full_name', combinedFullName);
+      draftData.append('email', formData.email.trim());
+      draftData.append('phone_number', parsePhone(formData.phone_number));
+      draftData.append('utr', formData.utr.trim());
+      draftData.append('emergency_contact_name', isMarathon ? formData.emergency_contact_name : (otherAttendeesStr ? `Attendees: ${otherAttendeesStr}` : ''));
+      draftData.append('emergency_contact', isMarathon ? parsePhone(formData.emergency_contact) : '');
+      draftData.append('blood_group', isMarathon ? (formData.blood_group || '') : '');
+      draftData.append('gender', isMarathon ? (formData.gender || '') : '');
       draftData.append('club_affiliation', finalClubAffiliation);
       draftData.append('tickets', JSON.stringify(tickets));
-      if (isMarathon) {
-        draftData.append('participants', JSON.stringify(participants));
-      }
+      draftData.append('participants', JSON.stringify(isMarathon ? participants : nonMarathonParticipants));
       draftData.append('total_amount', totalAmount.toString());
       draftData.append('allowed_entries', allowedEntries.toString());
       draftData.append('event_id', id);
@@ -550,31 +605,48 @@ export default function RegisterPage({
         for (let i = 0; i < quantities.bulk; i++) tickets.push('bulk');
       }
 
-      const submitData = new FormData();
-      submitData.append('full_name', formData.full_name || (isMarathon && participants.length > 0 ? participants[0].full_name : 'Group Purchaser'));
-      submitData.append('email', formData.email.trim());
-      submitData.append('phone_number', parsePhone(formData.phone_number));
-      submitData.append('utr', formData.utr.trim());
-      submitData.append('emergency_contact_name', isMarathon ? formData.emergency_contact_name : '');
-      submitData.append('emergency_contact', isMarathon ? parsePhone(formData.emergency_contact) : '');
-      submitData.append('blood_group', isMarathon ? (formData.blood_group || '') : '');
-      submitData.append('gender', isMarathon ? (formData.gender || '') : '');
-      
       let finalClubAffiliation = '';
       if (isMarathon) {
         finalClubAffiliation = formData.club_affiliation || '';
         if ((formData.club_affiliation === 'Rotaract Club' || formData.club_affiliation === 'Run Club') && formData.custom_club_name?.trim()) {
           finalClubAffiliation = `${formData.club_affiliation} (${formData.custom_club_name.trim()})`;
         }
+      } else {
+        if (formData.club_affiliation === 'Public') {
+          finalClubAffiliation = 'Public';
+        } else if (formData.custom_club_name?.trim()) {
+          finalClubAffiliation = `${formData.club_affiliation} (${formData.custom_club_name.trim()})`;
+        } else {
+          finalClubAffiliation = formData.club_affiliation || '';
+        }
       }
+
+      const otherAttendees = additionalParticipants.map(n => n.trim()).filter(Boolean);
+      const otherAttendeesStr = otherAttendees.join(', ');
+      const combinedFullName = (!isMarathon && otherAttendeesStr)
+        ? `${formData.full_name.trim()} (+${otherAttendeesStr})`
+        : (formData.full_name?.trim() || (isMarathon && participants.length > 0 ? participants[0].full_name : 'Primary Registrant'));
+
+      const nonMarathonParticipants = [
+        { full_name: formData.full_name.trim(), ticket_type: 'Primary Ticket' },
+        ...otherAttendees.map((name, idx) => ({
+          full_name: name,
+          ticket_type: `Ticket #${idx + 2}`
+        }))
+      ];
+
+      const submitData = new FormData();
+      submitData.append('full_name', combinedFullName);
+      submitData.append('email', formData.email.trim());
+      submitData.append('phone_number', parsePhone(formData.phone_number));
+      submitData.append('utr', formData.utr.trim());
+      submitData.append('emergency_contact_name', isMarathon ? formData.emergency_contact_name : (otherAttendeesStr ? `Attendees: ${otherAttendeesStr}` : ''));
+      submitData.append('emergency_contact', isMarathon ? parsePhone(formData.emergency_contact) : '');
+      submitData.append('blood_group', isMarathon ? (formData.blood_group || '') : '');
+      submitData.append('gender', isMarathon ? (formData.gender || '') : '');
       submitData.append('club_affiliation', finalClubAffiliation);
-      
-      // We pass tickets array as JSON
       submitData.append('tickets', JSON.stringify(tickets));
-      
-      if (isMarathon) {
-        submitData.append('participants', JSON.stringify(participants));
-      }
+      submitData.append('participants', JSON.stringify(isMarathon ? participants : nonMarathonParticipants));
       
       submitData.append('total_amount', totalAmount.toString());
       submitData.append('allowed_entries', allowedEntries.toString());
@@ -741,6 +813,8 @@ export default function RegisterPage({
       </div>
     );
   }
+
+  const isMarathon = event?.category?.toLowerCase()?.trim() === 'marathon';
 
   return (
     <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-3 sm:p-6 md:p-10">
@@ -1327,6 +1401,90 @@ export default function RegisterPage({
                 <span>📱</span> Used for entry verification at the venue & WhatsApp confirmation.
               </p>
             </div>
+
+            {/* AFFILIATION / CATEGORY SELECTOR */}
+            {!isMarathon && (
+              <>
+                <div>
+                  <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
+                    Category / Affiliation <span className="text-rose-400">*</span>
+                  </label>
+                  <select
+                    name="club_affiliation"
+                    value={formData.club_affiliation}
+                    onChange={handleChange}
+                    required
+                    className="w-full p-4 rounded-2xl bg-black/40 border border-white/10 text-white font-medium focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition"
+                  >
+                    <option value="" disabled>Select Category / Affiliation</option>
+                    <option value="Rotaract Club">Rotaract Club</option>
+                    <option value="Organization">Organization</option>
+                    <option value="College">College</option>
+                    <option value="Public">Public</option>
+                  </select>
+                </div>
+
+                {/* CONDITIONAL NAME INPUT FOR ROTARACT CLUB, ORGANIZATION, OR COLLEGE */}
+                {formData.club_affiliation && formData.club_affiliation !== 'Public' && (
+                  <div>
+                    <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
+                      {formData.club_affiliation === 'Rotaract Club' ? 'Rotaract Club Name' :
+                       formData.club_affiliation === 'Organization' ? 'Organization / Company Name' :
+                       'College / Institution Name'} <span className="text-rose-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="custom_club_name"
+                      placeholder={
+                        formData.club_affiliation === 'Rotaract Club' ? 'Enter Rotaract Club Name' :
+                        formData.club_affiliation === 'Organization' ? 'Enter Organization / Company Name' :
+                        'Enter College / Institution Name'
+                      }
+                      value={formData.custom_club_name}
+                      onChange={handleChange}
+                      required
+                      className="w-full p-4 rounded-2xl bg-black/40 border border-white/10 text-white font-medium focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition"
+                    />
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* OTHER TICKET HOLDERS (MANDATORY IF TICKETS > 1) */}
+            {allowedEntries > 1 && !isMarathon && (
+              <div className="pt-4 border-t border-white/10 space-y-4">
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
+                  <h3 className="text-sm font-bold text-amber-300 flex items-center gap-2">
+                    <span>👥</span> Other Ticket Holders ({allowedEntries - 1} Remaining)
+                  </h3>
+                  <p className="text-xs text-gray-300 mt-1">
+                    Ticket #1 is for <strong className="text-white">{formData.full_name || 'Primary Registrant'}</strong>. Filling the full names of all other ticket holders is mandatory.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {Array.from({ length: allowedEntries - 1 }).map((_, idx) => (
+                    <div key={idx}>
+                      <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
+                        Ticket #{idx + 2} Holder Full Name <span className="text-rose-400">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder={`Enter Full Name for Ticket #${idx + 2}`}
+                        value={additionalParticipants[idx] || ''}
+                        onChange={(e) => {
+                          const updated = [...additionalParticipants];
+                          updated[idx] = e.target.value;
+                          setAdditionalParticipants(updated);
+                        }}
+                        required
+                        className="w-full p-4 rounded-2xl bg-black/40 border border-white/10 text-white font-medium focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition text-sm"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1507,10 +1665,6 @@ export default function RegisterPage({
 
           return (
             <div className="bg-white text-black rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 md:p-8 mb-6 sm:mb-8 text-center shadow-2xl border border-gray-200 max-w-full overflow-hidden">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 text-[10px] sm:text-xs font-black uppercase tracking-wider mb-2.5 sm:mb-3 border border-emerald-300">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                Dynamic UPI Payment • Zero Gateway Fees
-              </div>
               <h3 className="text-xl sm:text-3xl font-black text-gray-950 mb-1">
                 Scan to Pay ₹{totalAmount}
               </h3>
