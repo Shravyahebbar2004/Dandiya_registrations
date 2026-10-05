@@ -137,7 +137,7 @@ export default function MyTicketPage() {
       ['Event:', ticket.title || 'N/A'],
       ['Ticket:', `${ticket.ticket_type || ''} (${ticket.allowed_entries || 1} members)`],
       ['Venue:', ticket.venue || 'N/A'],
-      ['Date:', ticket.event_date ? new Date(ticket.event_date).toLocaleDateString() : 'N/A']
+      ['Date & Time:', ticket.event_date ? `${new Date(ticket.event_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' })} • ${new Date(ticket.event_date).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true })} IST` : 'N/A']
     ];
 
     details.forEach(([label, val]) => {
@@ -525,7 +525,21 @@ export default function MyTicketPage() {
                           <span className="text-violet-300 font-bold">Venue:</span> {ticket.venue}
                         </p>
                         <p className="text-white text-lg">
-                          <span className="text-violet-300 font-bold">Date:</span> {new Date(ticket.event_date).toLocaleDateString()}
+                          <span className="text-violet-300 font-bold">Date & Time:</span>{' '}
+                          {new Date(ticket.event_date).toLocaleDateString('en-IN', {
+                            timeZone: 'Asia/Kolkata',
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric'
+                          })}{' '}
+                          at{' '}
+                          {new Date(ticket.event_date).toLocaleTimeString('en-IN', {
+                            timeZone: 'Asia/Kolkata',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true
+                          })}{' '}
+                          IST
                         </p>
                       </div>
 

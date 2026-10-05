@@ -216,7 +216,18 @@ export default function EditEventPage() {
         const formatDateTimeLocal = (dateString: string) => {
           if (!dateString) return '';
           const date = new Date(dateString);
-          return date.toISOString().slice(0, 16);
+          if (isNaN(date.getTime())) return '';
+          const parts = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Kolkata',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+          }).formatToParts(date);
+          const get = (type: string) => parts.find(p => p.type === type)?.value || '';
+          return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
         };
 
         setFormData({
