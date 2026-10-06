@@ -18,52 +18,27 @@ export default function ScannerLoginPage() {
   // LOGIN
   // =====================================
 
-  const handleLogin = async (
-
-    e: React.FormEvent
-
-  ) => {
-
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanUsername = username.trim();
+    const cleanPassword = password.trim();
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
 
     try {
-
       const response = await axios.post(
-
-        `${process.env.NEXT_PUBLIC_API_URL}/api/scanner/login`,
-
+        `${apiUrl}/api/scanner/login`,
         {
-
-          username,
-
-          password
-
+          username: cleanUsername,
+          password: cleanPassword
         }
-
       );
 
-      localStorage.setItem(
-
-        'scanner_token',
-
-        response.data.token
-
-      );
-
-      router.push(
-
-  `/scanner/${response.data.event_id}`
-
-);
-
+      localStorage.setItem('scanner_token', response.data.token);
+      router.push(`/scanner/${response.data.event_id || 1}`);
     } catch (error) {
-
       console.log(error);
-
       alert('Invalid Credentials');
-
     }
-
   };
 
   return (

@@ -28,18 +28,22 @@ export default function AdminLogin() {
     setLoading(true);
     setError('');
 
+    const cleanUsername = formData.username.trim();
+    const cleanPassword = formData.password.trim();
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+
     try {
       if (loginType === 'admin') {
         const response = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/admin/login`,
-          formData
+          `${apiUrl}/api/admin/login`,
+          { username: cleanUsername, password: cleanPassword }
         );
         localStorage.setItem('admin_token', response.data.token);
         router.push(`/admin/${response.data.event_id || 1}`);
       } else {
         const response = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/scanner/login`,
-          formData
+          `${apiUrl}/api/scanner/login`,
+          { username: cleanUsername, password: cleanPassword }
         );
         localStorage.setItem('scanner_token', response.data.token);
         router.push(`/scanner/${response.data.event_id || 1}`);
