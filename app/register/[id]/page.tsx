@@ -78,12 +78,12 @@ export default function RegisterPage({
   const [sendingOtpQuick, setSendingOtpQuick] = useState(false);
   const [lastSentEmail, setLastSentEmail] = useState('');
 
-  const triggerSendOtp = async (emailOverride?: string) => {
+  const triggerSendOtp = async (emailOverride?: string, forceResend = false) => {
     const targetEmail = (emailOverride || formData.email).trim().toLowerCase();
     if (!targetEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(targetEmail)) {
       return;
     }
-    if (sendingOtpQuick || (isOtpSent && lastSentEmail === targetEmail)) {
+    if (sendingOtpQuick || (!forceResend && isOtpSent && lastSentEmail === targetEmail)) {
       return;
     }
 
@@ -589,15 +589,21 @@ export default function RegisterPage({
         draftData.append('payment_proof', paymentProof);
       }
 
-      // SEND OTP FIRST & SAVE DRAFT IMMEDIATELY
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/send-otp`,
-        draftData,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
-      );
-
-      if (response.data.success) {
+      // IF OTP WAS ALREADY DISPATCHED TO THIS EMAIL, OPEN MODAL DIRECTLY; OTHERWISE SEND OTP NOW
+      if (isOtpSent && lastSentEmail === formData.email.trim().toLowerCase()) {
         setShowOtpModal(true);
+      } else {
+        const response = await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/send-otp`,
+          draftData,
+          { headers: { 'Content-Type': 'multipart/form-data' } }
+        );
+
+        if (response.data.success) {
+          setIsOtpSent(true);
+          setLastSentEmail(formData.email.trim().toLowerCase());
+          setShowOtpModal(true);
+        }
       }
     } catch (error: any) {
       console.log('FULL ERROR:', error);
@@ -1919,10 +1925,24 @@ export default function RegisterPage({
               type="button"
               onClick={handleVerifyAndRegister}
               disabled={otpSending || otp.length < 6}
-              className="w-full bg-cyan-500 hover:bg-cyan-600 text-black font-bold py-4 rounded-2xl transition disabled:opacity-50"
+              className="w-full bg-cyan-500 hover:bg-cyan-600 text-black font-bold py-4 rounded-2xl transition disabled:opacity-50 mb-3"
             >
               {otpSending ? 'Verifying...' : 'Verify & Register'}
             </button>
+
+            <div className="text-center">
+              <button 
+                type="button"
+                onClick={async () => {
+                  await triggerSendOtp(formData.email, true);
+                  alert(`A new 6-digit code has been sent to ${formData.email}!`);
+                }}
+                disabled={sendingOtpQuick}
+                className="text-xs font-bold text-cyan-400 hover:text-cyan-300 underline"
+              >
+                {sendingOtpQuick ? 'Sending Code...' : 'Resend Verification Code 📩'}
+              </button>
+            </div>
           </div>
         </div>
       )}
