@@ -16,32 +16,24 @@ export default function ScannerPage({
   const scannerRef = useRef<any>(null);
 
   const [scanResult, setScanResult] = useState<any>(null);
-  
+  const [isAuthorized, setIsAuthorized] = useState<boolean>(false);
   const isScanningRef = useRef(true);
-
-
-
 
   // =====================================
   // AUTH CHECK
   // =====================================
 
   useEffect(() => {
+    const token = localStorage.getItem('scanner_token');
+    const adminToken = localStorage.getItem('admin_token');
 
-    const token = localStorage.getItem(
-
-      'scanner_token'
-
-    );
-
-
-
-    if (!token) {
-
+    if (!token && !adminToken) {
+      setIsAuthorized(false);
       router.push('/scanner-login');
-
+      return;
     }
 
+    setIsAuthorized(true);
   }, [router]);
 
 
@@ -190,8 +182,18 @@ export default function ScannerPage({
 
   }, []);
 
-
-
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center text-white p-6">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-gray-400 font-bold text-sm tracking-wide">
+            Authenticating Scanner Access...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
 

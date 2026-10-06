@@ -35,14 +35,14 @@ export default function AdminLogin() {
           formData
         );
         localStorage.setItem('admin_token', response.data.token);
-        router.push(`/admin/${response.data.event_id}`);
+        router.push(`/admin/${response.data.event_id || 1}`);
       } else {
         const response = await axios.post(
           `${process.env.NEXT_PUBLIC_API_URL}/api/scanner/login`,
           formData
         );
         localStorage.setItem('scanner_token', response.data.token);
-        router.push(`/admin/${response.data.event_id}`);
+        router.push(`/scanner/${response.data.event_id || 1}`);
       }
     } catch (err: any) {
       console.log(err);

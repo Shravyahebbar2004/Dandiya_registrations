@@ -339,6 +339,7 @@ export default function AdminPage({
 
   const [statusFilter, setStatusFilter] = useState<StatusFilterType>('all');
   const [mounted, setMounted] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(false);
   const [approvingId, setApprovingId] = useState<number | null>(null);
 
   const [analytics, setAnalytics] =
@@ -412,13 +413,14 @@ export default function AdminPage({
     setMounted(true);
 
     const adminToken = localStorage.getItem('admin_token');
-    const scannerToken = localStorage.getItem('scanner_token');
 
-    if (!adminToken && !scannerToken) {
+    if (!adminToken) {
+      setIsAuthorized(false);
       router.push('/admin-login');
       return;
     }
 
+    setIsAuthorized(true);
     fetchUsers();
     fetchAnalytics();
 
@@ -428,7 +430,7 @@ export default function AdminPage({
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [router]);
+  }, [router, id]);
 
   // ====================================
   // ANALYTICS
@@ -557,12 +559,17 @@ export default function AdminPage({
       return b.registration_id - a.registration_id;
     });
 
-  // ====================================
-  // HYDRATION FIX
-  // ====================================
-
-  if (!mounted) {
-    return null;
+  if (!mounted || !isAuthorized) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center text-white p-6">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-gray-400 font-bold text-sm tracking-wide">
+            Authenticating Admin Access...
+          </p>
+        </div>
+      </div>
+    );
   }
 
   // ====================================
