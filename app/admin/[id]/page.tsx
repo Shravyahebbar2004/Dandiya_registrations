@@ -54,19 +54,16 @@ export default function AdminPage({
   const { id } = use(params);
   const exportExcel = () => {
     const headers = [
-      'BIB Number',
       'Name',
       'Email',
       'Phone',
       'Ticket',
-      'Club / Category',
+      'Category / Affiliation',
+      'Other Participant Names',
       'UTR / UPI Ref',
       'Payment Status',
       'Coupon Used',
-      'Entries',
-      'Emergency Contact Name',
-      'Emergency Contact No',
-      'Blood Group'
+      'Entries'
     ];
 
     const escapeXml = (str: any) => {
@@ -79,19 +76,7 @@ export default function AdminPage({
         .replace(/'/g, '&apos;');
     };
 
-    const sortUsersByBib = (userList: User[]) => {
-      return [...userList].sort((a, b) => {
-        const bibA = a.bib_number ? Number(a.bib_number) : null;
-        const bibB = b.bib_number ? Number(b.bib_number) : null;
-        if (bibA !== null && bibB !== null && bibA !== bibB) {
-          return bibB - bibA;
-        }
-        return b.registration_id - a.registration_id;
-      });
-    };
-
     const buildWorksheetXml = (sheetName: string, userList: User[]) => {
-      const sorted = sortUsersByBib(userList);
       let xml = `<Worksheet ss:Name="${escapeXml(sheetName)}"><Table>`;
 
       // Header Row
@@ -102,22 +87,19 @@ export default function AdminPage({
       xml += '</Row>';
 
       // Data Rows
-      sorted.forEach((u) => {
+      userList.forEach((u) => {
         xml += '<Row>';
         const rowData = [
-          u.bib_number ? `#${u.bib_number}` : '-',
           u.full_name,
           u.email,
           u.phone_number,
           u.ticket_type,
           u.club_affiliation || 'None',
+          u.emergency_contact_name ? (u.emergency_contact_name.startsWith('Attendees: ') ? u.emergency_contact_name.replace('Attendees: ', '') : u.emergency_contact_name) : '-',
           u.utr || '-',
           u.payment_status,
           u.coupon_code || '-',
-          `${u.used_entries}/${u.allowed_entries}`,
-          u.emergency_contact_name || '-',
-          u.emergency_contact || '-',
-          u.blood_group || '-'
+          `${u.used_entries}/${u.allowed_entries}`
         ];
         rowData.forEach((val) => {
           xml += `<Cell><Data ss:Type="String">${escapeXml(val)}</Data></Cell>`;
@@ -174,35 +156,29 @@ export default function AdminPage({
 
   const exportCSV = () => {
     const headers = [
-      'BIB Number',
       'Name',
       'Email',
       'Phone',
       'Ticket',
-      'Club / Category',
+      'Category / Affiliation',
+      'Other Participant Names',
       'UTR / UPI Ref',
       'Payment Status',
       'Coupon Used',
-      'Entries',
-      'Emergency Contact Name',
-      'Emergency Contact No',
-      'Blood Group'
+      'Entries'
     ];
 
     const rows = filteredUsers.map((user) => [
-      user.bib_number ? `#${user.bib_number}` : '-',
       user.full_name,
       user.email,
       user.phone_number,
       user.ticket_type,
       user.club_affiliation || 'None',
+      user.emergency_contact_name ? (user.emergency_contact_name.startsWith('Attendees: ') ? user.emergency_contact_name.replace('Attendees: ', '') : user.emergency_contact_name) : '-',
       user.utr || '-',
       user.payment_status,
       user.coupon_code || '-',
-      `${user.used_entries}/${user.allowed_entries}`,
-      user.emergency_contact_name || '-',
-      user.emergency_contact || '-',
-      user.blood_group || '-'
+      `${user.used_entries}/${user.allowed_entries}`
     ]);
 
     const csvContent =
@@ -298,15 +274,12 @@ export default function AdminPage({
       'Participant Name',
       'Phone Number',
       'Ticket Type',
-      'BIB Number',
+      'Other Participant Names',
       'UTR / UPI Ref',
       'Payment Status',
       'Club / Affiliation',
       'Coupon Code',
-      'Entries Used/Allowed',
-      'Emergency Contact Name',
-      'Emergency Contact Phone',
-      'Blood Group'
+      'Entries Used/Allowed'
     ];
 
     const sortedUsers = [...users].sort((a, b) => {
@@ -320,15 +293,12 @@ export default function AdminPage({
       u.full_name || 'N/A',
       u.phone_number || 'N/A',
       u.ticket_type || 'N/A',
-      u.bib_number ? `#${u.bib_number}` : '-',
+      u.emergency_contact_name ? (u.emergency_contact_name.startsWith('Attendees: ') ? u.emergency_contact_name.replace('Attendees: ', '') : u.emergency_contact_name) : '-',
       u.utr || '-',
       u.payment_status || 'pending',
       u.club_affiliation || 'None',
       u.coupon_code || '-',
-      `${u.used_entries}/${u.allowed_entries}`,
-      u.emergency_contact_name || '-',
-      u.emergency_contact || '-',
-      u.blood_group || '-'
+      `${u.used_entries}/${u.allowed_entries}`
     ]);
 
     const csvContent =
@@ -1196,17 +1166,17 @@ transition            border
                 text-black
               "
             >
-              <th className="p-5">BIB #</th>
-
               <th className="p-5">Name</th>
 
               <th className="p-5">Email</th>
 
               <th className="p-5">Phone</th>
 
-              <th className="p-5">Ticket</th>
+              <th className="p-5">Ticket Pass</th>
 
-              <th className="p-5">Club / Category</th>
+              <th className="p-5">Category / Affiliation</th>
+
+              <th className="p-5">Other Participants</th>
 
               <th className="p-5">Coupon Code</th>
 
@@ -1217,12 +1187,6 @@ transition            border
               <th className="p-5">Approval</th>
 
               <th className="p-5">Entries</th>
-
-              <th className="p-5">Emg. Name</th>
-
-              <th className="p-5">Emg. Contact</th>
-
-              <th className="p-5">Blood Group</th>
             </tr>
           </thead>
 
@@ -1238,48 +1202,24 @@ transition            border
                   transition
                 "
               >
-                {/* BIB NUMBER */}
-                <td className="p-5">
-                  {user.bib_number ? (
-                    <span className="bg-amber-400/20 text-amber-300 border border-amber-400/40 px-3 py-1.5 rounded-xl font-black text-sm tracking-wider">
-                      #{user.bib_number}
-                    </span>
-                  ) : (
-                    <span className="text-gray-500 text-xs font-semibold">-</span>
-                  )}
-                </td>
-
                 {/* NAME */}
-
-                <td className="p-5">
+                <td className="p-5 font-bold text-white">
                   {user.full_name}
                 </td>
 
                 {/* EMAIL */}
-
-                <td className="p-5">
+                <td className="p-5 text-gray-300">
                   {user.email}
                 </td>
 
                 {/* PHONE */}
-
-                <td className="p-5">
+                <td className="p-5 text-gray-300">
                   {user.phone_number}
                 </td>
 
                 {/* TICKET */}
-
                 <td className="p-5">
-                  <span
-                    className="
-                      bg-yellow-400/10
-                      text-yellow-300
-                      px-4
-                      py-2
-                      rounded-xl
-                      font-bold
-                    "
-                  >
+                  <span className="bg-yellow-400/10 text-yellow-300 px-3 py-1.5 rounded-xl font-bold text-xs">
                     {user.ticket_type}
                   </span>
                 </td>
@@ -1289,6 +1229,17 @@ transition            border
                   <span className="bg-cyan-400/10 text-cyan-300 border border-cyan-400/30 px-3 py-1.5 rounded-xl font-bold text-xs">
                     {user.club_affiliation || 'None'}
                   </span>
+                </td>
+
+                {/* OTHER PARTICIPANTS */}
+                <td className="p-5">
+                  {user.emergency_contact_name ? (
+                    <span className="bg-amber-500/15 text-amber-200 border border-amber-500/30 px-3 py-1.5 rounded-xl text-xs font-medium inline-block max-w-[220px] truncate" title={user.emergency_contact_name.replace('Attendees: ', '')}>
+                      👥 {user.emergency_contact_name.replace('Attendees: ', '')}
+                    </span>
+                  ) : (
+                    <span className="text-gray-500 text-xs font-semibold">-</span>
+                  )}
                 </td>
 
                 {/* COUPON CODE */}
@@ -1317,7 +1268,6 @@ transition            border
                 </td>
 
                 {/* PAYMENT IMAGE */}
-
                 <td className="p-5">
                   <a 
                     href={user.payment_proof?.startsWith('http') ? user.payment_proof : `${process.env.NEXT_PUBLIC_API_URL}/uploads/${user.payment_proof}`} 
@@ -1328,20 +1278,12 @@ transition            border
                     <img
                       src={user.payment_proof?.startsWith('http') ? user.payment_proof : `${process.env.NEXT_PUBLIC_API_URL}/uploads/${user.payment_proof}`}
                       alt="Payment Proof"
-                    
-                      className="
-                         w-24
-                         rounded-xl
-                         mx-auto
-                         border
-                         border-white/20
-                      "
+                      className="w-24 rounded-xl mx-auto border border-white/20"
                     />
                   </a>
                 </td>
 
                 {/* APPROVAL */}
-
                 <td className="p-5">
                   {user.payment_status === 'approved' ? (
                     <span className="text-green-400 font-bold">Approved ✅</span>
@@ -1360,25 +1302,9 @@ transition            border
                     </div>
                   ) : (
                     <button
-                      onClick={() =>
-                        approvePayment(
-                          user.registration_id
-                        )
-                      }
+                      onClick={() => approvePayment(user.registration_id)}
                       disabled={approvingId === user.registration_id}
-                      className={`
-                        bg-green-500
-                        hover:bg-green-600
-                        px-6
-                        py-4
-                        rounded-2xl
-                        font-bold
-                        text-lg
-                        transition
-                        w-full
-                        md:w-auto
-                        ${approvingId === user.registration_id ? 'opacity-50 cursor-not-allowed' : ''}
-                      `}
+                      className={`bg-green-500 hover:bg-green-600 px-6 py-3 rounded-2xl font-bold text-sm transition ${approvingId === user.registration_id ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {approvingId === user.registration_id ? 'Approving...' : 'Approve'}
                     </button>
@@ -1386,31 +1312,10 @@ transition            border
                 </td>
 
                 {/* ENTRY COUNT */}
-
                 <td className="p-5">
-                  <span
-                    className="
-                      text-yellow-300
-                      font-bold
-                    "
-                  >
-                    {user.used_entries}/
-                    {user.allowed_entries}
+                  <span className="text-yellow-300 font-bold">
+                    {user.used_entries}/{user.allowed_entries}
                   </span>
-                </td>
-
-                {/* EMERGENCY INFO */}
-
-                <td className="p-5 text-gray-300 text-sm">
-                  {user.emergency_contact_name || '-'}
-                </td>
-
-                <td className="p-5 text-gray-300 text-sm">
-                  {user.emergency_contact || '-'}
-                </td>
-
-                <td className="p-5 text-red-400 font-bold">
-                  {user.blood_group || '-'}
                 </td>
               </tr>
             ))}
