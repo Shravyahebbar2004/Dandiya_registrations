@@ -351,133 +351,91 @@ export default function ScannerPage({
           ">
 
             {
-
               scanResult.success
-
                 ? (
+                  <div className="bg-emerald-500/10 border-2 border-emerald-500/40 backdrop-blur-2xl rounded-[35px] p-8 sm:p-10 text-center shadow-[0_0_50px_rgba(16,185,129,0.25)]">
+                    <div className="w-20 h-20 bg-emerald-500/20 rounded-3xl flex items-center justify-center mx-auto mb-4 border border-emerald-500/40 text-emerald-400 text-4xl font-black">
+                      ✓
+                    </div>
 
-                  <div className="
-                    bg-green-500/10
-                    border
-                    border-green-500/30
-                    backdrop-blur-xl
-                    rounded-[35px]
-                    p-10
-                    text-center
-                  ">
-
-                    <h2 className="
-                      text-5xl
-                      font-black
-                      text-green-400
-                      mb-6
-                    ">
-
+                    <h2 className="text-4xl sm:text-5xl font-black text-emerald-400 mb-2">
                       ENTRY ALLOWED ✅
-
                     </h2>
-
-                    <p className="
-                      text-3xl
-                      font-bold
-                      mb-4
-                    ">
-
-                      {
-
-                        scanResult.attendee.full_name
-
-                      }
-
+                    <p className="text-emerald-300/80 text-sm font-bold uppercase tracking-wider mb-6">
+                      Scan #{scanResult.attendee.used_entries} of {scanResult.attendee.allowed_entries} Verified
                     </p>
 
-                    <p className="
-                      text-xl
-                      text-gray-300
-                    ">
+                    <div className="bg-black/40 border border-white/10 rounded-2xl p-6 mb-4 text-left space-y-3">
+                      <div>
+                        <span className="text-xs text-gray-400 font-bold uppercase tracking-wider block">Registered Attendee</span>
+                        <p className="text-2xl sm:text-3xl font-black text-white">{scanResult.attendee.full_name}</p>
+                      </div>
+                      
+                      <div className="flex justify-between items-center pt-3 border-t border-white/10">
+                        <div>
+                          <span className="text-xs text-gray-400 font-bold uppercase tracking-wider block">Ticket Pass Type</span>
+                          <p className="text-base font-bold text-amber-300">{scanResult.attendee.ticket_type}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs text-gray-400 font-bold uppercase tracking-wider block">Entries Used</span>
+                          <p className="text-2xl font-black text-emerald-400">
+                            {scanResult.attendee.used_entries} / {scanResult.attendee.allowed_entries}
+                          </p>
+                        </div>
+                      </div>
 
-                      Ticket Type:
+                      {scanResult.attendee.phone_number && (
+                        <div className="pt-2 border-t border-white/10 flex justify-between text-xs text-gray-400">
+                          <span>Phone: <strong className="text-white">{scanResult.attendee.phone_number}</strong></span>
+                          {scanResult.attendee.utr && <span>UTR: <strong className="text-amber-300 font-mono">{scanResult.attendee.utr}</strong></span>}
+                        </div>
+                      )}
+                    </div>
 
-                      {' '}
-
-                      {
-
-                        scanResult.attendee.ticket_type
-
+                    <div className="bg-emerald-500/20 border border-emerald-500/30 rounded-xl p-3 text-xs sm:text-sm text-emerald-200 font-bold">
+                      {scanResult.attendee.allowed_entries - scanResult.attendee.used_entries > 0 
+                        ? `🎟️ ${scanResult.attendee.allowed_entries - scanResult.attendee.used_entries} more ${scanResult.attendee.allowed_entries - scanResult.attendee.used_entries === 1 ? 'entry' : 'entries'} remaining on this QR pass.`
+                        : '🎉 Final entry used! All entries on this QR pass are now completed.'
                       }
-
-                    </p>
-
-                    <p className="
-                      text-xl
-                      text-gray-300
-                      mt-3
-                    ">
-
-                      Entries:
-
-                      {' '}
-
-                      {
-
-                        scanResult.attendee.used_entries
-
-                      }
-
-                      /
-
-                      {
-
-                        scanResult.attendee.allowed_entries
-
-                      }
-
-                    </p>
-
+                    </div>
                   </div>
-
                 )
-
                 : (
+                  <div className="bg-rose-500/10 border-2 border-rose-500/40 backdrop-blur-2xl rounded-[35px] p-8 sm:p-10 text-center shadow-[0_0_50px_rgba(244,63,94,0.25)]">
+                    <div className="w-20 h-20 bg-rose-500/20 rounded-3xl flex items-center justify-center mx-auto mb-4 border border-rose-500/40 text-rose-400 text-4xl font-black">
+                      ✕
+                    </div>
 
-                  <div className="
-                    bg-red-500/10
-                    border
-                    border-red-500/30
-                    backdrop-blur-xl
-                    rounded-[35px]
-                    p-10
-                    text-center
-                  ">
-
-                    <h2 className="
-                      text-5xl
-                      font-black
-                      text-red-400
-                      mb-6
-                    ">
-
+                    <h2 className="text-4xl sm:text-5xl font-black text-rose-400 mb-4">
                       ENTRY DENIED ❌
-
                     </h2>
 
-                    <p className="
-                      text-2xl
-                      text-gray-300
-                    ">
-
-                      {
-
-                        scanResult.message
-
-                      }
-
+                    <p className="text-xl sm:text-2xl font-bold text-white mb-4">
+                      {scanResult.message}
                     </p>
 
+                    {scanResult.attendee && (
+                      <div className="bg-black/40 border border-white/10 rounded-2xl p-6 text-left space-y-3">
+                        <div>
+                          <span className="text-xs text-gray-400 font-bold uppercase tracking-wider block">Registered Attendee</span>
+                          <p className="text-2xl font-bold text-white">{scanResult.attendee.full_name}</p>
+                        </div>
+                        <div className="flex justify-between items-center pt-3 border-t border-white/10">
+                          <div>
+                            <span className="text-xs text-gray-400 font-bold uppercase tracking-wider block">Ticket Type</span>
+                            <p className="text-sm font-bold text-amber-300">{scanResult.attendee.ticket_type}</p>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-xs text-gray-400 font-bold uppercase tracking-wider block">Scans Used</span>
+                            <p className="text-xl font-black text-rose-400">
+                              {scanResult.attendee.used_entries} / {scanResult.attendee.allowed_entries}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-
                 )
-
             }
 
             {/* SCAN NEXT BUTTON */}

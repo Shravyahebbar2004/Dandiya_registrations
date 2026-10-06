@@ -821,9 +821,6 @@ export default function RegisterPage({
       {isDandiyaTiered && step === 1 ? (
         <div className="bg-white/5 border border-white/10 backdrop-blur-xl rounded-3xl p-6 sm:p-10 w-full max-w-3xl shadow-2xl">
           <div className="text-center mb-8">
-            <span className="inline-block px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-gradient-to-r from-amber-500 to-rose-500 text-black shadow-lg mb-3">
-              ✨ Dandiya - 2026 Ticketing
-            </span>
             <h1 className="text-3xl sm:text-5xl font-black bg-gradient-to-r from-amber-200 via-rose-300 to-amber-400 bg-clip-text text-transparent">
               {event.title}
             </h1>
@@ -1014,29 +1011,6 @@ export default function RegisterPage({
               </button>
             </div>
 
-            {/* QUICK SELECTION PILLS */}
-            <div className="flex flex-wrap justify-center gap-2 pt-2 border-t border-white/10">
-              <span className="text-xs text-gray-400 font-bold self-center mr-2">Quick Pick:</span>
-              {[
-                { qty: 1, label: '1 Ticket' },
-                { qty: 2, label: '2 Tickets (Couple)' },
-                { qty: 5, label: '5 Tickets (Group)' },
-                { qty: 10, label: '10 Tickets (Bulk)' }
-              ].map(item => (
-                <button
-                  key={item.qty}
-                  type="button"
-                  onClick={() => setQuantities({ ...quantities, dandiya: item.qty })}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition border ${
-                    (quantities.dandiya || 1) === item.qty
-                      ? 'bg-amber-500 text-black border-amber-400 font-black shadow-md'
-                      : 'bg-white/5 hover:bg-white/10 text-gray-300 border-white/10'
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* INCLUSIONS NOTE */}

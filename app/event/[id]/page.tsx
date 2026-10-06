@@ -153,6 +153,21 @@ export default function EventPage({
           </span>
         </div>
 
+        {/* EVENT BANNER (POSTER ON TOP) */}
+        {event.banner_url && (
+          <div className="w-full max-w-4xl mx-auto mb-6 sm:mb-8 rounded-2xl sm:rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-black/80 bg-black/40">
+            <img
+              src={
+                event.banner_url?.startsWith('http')
+                  ? event.banner_url
+                  : `${process.env.NEXT_PUBLIC_API_URL}/${event.banner_url?.replace(/\\/g, '/')}`
+              }
+              alt={event.title}
+              className="w-full h-auto max-h-[70vh] object-contain mx-auto block"
+            />
+          </div>
+        )}
+
         {/* HERO TITLE & TAGLINE */}
         <div className="text-center mb-6 sm:mb-8">
           <h1 className="text-3xl sm:text-5xl md:text-6xl font-black mb-3 bg-gradient-to-r from-white via-amber-100 to-rose-200 bg-clip-text text-transparent tracking-tight">
@@ -191,21 +206,6 @@ export default function EventPage({
             </Link>
           )}
         </div>
-
-        {/* EVENT BANNER */}
-        {event.banner_url && (
-          <div className="w-full max-w-4xl mx-auto mb-8 sm:mb-12 rounded-2xl sm:rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-black/80 bg-black/40">
-            <img
-              src={
-                event.banner_url?.startsWith('http')
-                  ? event.banner_url
-                  : `${process.env.NEXT_PUBLIC_API_URL}/${event.banner_url?.replace(/\\/g, '/')}`
-              }
-              alt={event.title}
-              className="w-full h-auto max-h-[70vh] object-contain mx-auto block"
-            />
-          </div>
-        )}
 
         {/* FESTIVE HIGHLIGHTS (CLEAN & MODERN CHIPS) */}
         {isDandiyaEvent && (
