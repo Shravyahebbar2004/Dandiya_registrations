@@ -26,14 +26,25 @@ import {
 import { motion } from 'framer-motion';
 
 export default function EditEventPage() {
-
-    const router = useRouter();
-    const params = useParams();
-    const id = params.id;
+  const router = useRouter();
+  const params = useParams();
+  const id = params?.id;
 
   // =====================================
-  // FORM STATE
+  // AUTH CHECK
   // =====================================
+  const [isAuthorized, setIsAuthorized] = useState(false);
+
+  useEffect(() => {
+    const adminToken = localStorage.getItem('admin_token');
+    const platformToken = localStorage.getItem('platform_token');
+    if (!adminToken && !platformToken) {
+      setIsAuthorized(false);
+      router.push('/admin-login');
+      return;
+    }
+    setIsAuthorized(true);
+  }, [router]);
 
   const [formData, setFormData] = useState({
 
@@ -415,6 +426,19 @@ export default function EditEventPage() {
     }
 
   };
+
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center text-white p-6">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-gray-400 font-bold text-sm tracking-wide">
+            Authenticating Admin Access...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
 
