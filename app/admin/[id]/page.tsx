@@ -129,28 +129,17 @@ export default function AdminPage({
       return xml;
     };
 
-    const isMarathonUser = (user: User) => {
-      const t = user.ticket_type?.toLowerCase() || '';
-      return t.includes('5k') || t.includes('3k') || t.includes('10k') || t.includes('marathon') ||
-             Boolean(user.emergency_contact_name && user.blood_group);
-    };
-
     const sortedAsc = [...users].sort((a, b) => Number(a.registration_id) - Number(b.registration_id));
 
     const sheetsData = [
       { name: 'Sheet 1 - All Registrations', data: users },
-      { name: 'Sheet 2 - Pending Approval', data: users.filter((u) => u.payment_status === 'pending') },
-      { name: 'Sheet 3 - Approved', data: users.filter((u) => u.payment_status === 'approved') },
+      { name: 'Sheet 2 - Accepted (Approved)', data: users.filter((u) => u.payment_status === 'approved') },
+      { name: 'Sheet 3 - Pending Approval', data: users.filter((u) => u.payment_status === 'pending') },
       { name: 'Sheet 4 - Incomplete Drafts', data: users.filter((u) => u.payment_status === 'draft') },
       { name: 'Sheet 5 - Flash Sale Timeline', data: sortedAsc.filter((u, idx) => idx < 50 || u.coupon_code?.toLowerCase().includes('flash')) },
       { name: 'Sheet 6 - Early Bird (Slab 1)', data: sortedAsc.filter((u, idx) => idx >= 50 && idx < 150) },
       { name: 'Sheet 7 - Normal (Slab 2)', data: sortedAsc.filter((u, idx) => idx >= 150 && idx < 300) },
-      { name: 'Sheet 8 - Slab 3 Timeline', data: sortedAsc.filter((u, idx) => idx >= 300) },
-      { name: 'Sheet 9 - Marathon Accepted', data: users.filter((u) => isMarathonUser(u) && u.payment_status === 'approved') },
-      { name: 'Sheet 10 - Marathon Pending', data: users.filter((u) => isMarathonUser(u) && u.payment_status === 'pending') },
-      { name: 'Sheet 11 - Marathon Incomplete Drafts', data: users.filter((u) => isMarathonUser(u) && u.payment_status === 'draft') },
-      { name: 'Sheet 12 - 5K Category', data: users.filter((u) => u.ticket_type?.toUpperCase().includes('5K') && u.payment_status === 'approved') },
-      { name: 'Sheet 13 - 3K Category', data: users.filter((u) => u.ticket_type?.toUpperCase().includes('3K') && u.payment_status === 'approved') }
+      { name: 'Sheet 8 - Slab 3 Timeline', data: sortedAsc.filter((u, idx) => idx >= 300) }
     ];
 
     let workbookXml = `<?xml version="1.0"?>
@@ -369,18 +358,13 @@ export default function AdminPage({
   const [search, setSearch] = useState('');
   type StatusFilterType =
     | 'all'
-    | 'pending'
     | 'approved'
+    | 'pending'
     | 'draft'
     | 'flash_sale'
     | 'slab1'
     | 'slab2'
     | 'slab3'
-    | 'marathon_accepted'
-    | 'marathon_pending'
-    | 'marathon_draft'
-    | '5k'
-    | '3k'
     | 'emails';
 
   const [statusFilter, setStatusFilter] = useState<StatusFilterType>('all');
@@ -573,15 +557,10 @@ export default function AdminPage({
 
       if (!matchesSearch) return false;
 
-      if (statusFilter === 'pending') return user.payment_status === 'pending';
       if (statusFilter === 'approved') return user.payment_status === 'approved';
+      if (statusFilter === 'pending') return user.payment_status === 'pending';
       if (statusFilter === 'draft') return user.payment_status === 'draft';
       
-      // Marathon Status Tabs
-      if (statusFilter === 'marathon_accepted') return isMarathonUser(user) && user.payment_status === 'approved';
-      if (statusFilter === 'marathon_pending') return isMarathonUser(user) && user.payment_status === 'pending';
-      if (statusFilter === 'marathon_draft') return isMarathonUser(user) && user.payment_status === 'draft';
-
       // Dandiya Timeline Slabs
       const idx = sortedAscUsers.findIndex((u) => u.registration_id === user.registration_id);
       if (statusFilter === 'flash_sale') {
@@ -596,9 +575,6 @@ export default function AdminPage({
       if (statusFilter === 'slab3') {
         return idx >= 300;
       }
-
-      if (statusFilter === '5k') return user.ticket_type?.toUpperCase().includes('5K') && user.payment_status === 'approved';
-      if (statusFilter === '3k') return user.ticket_type?.toUpperCase().includes('3K') && user.payment_status === 'approved';
       return true;
     })
     .sort((a, b) => {
@@ -1028,9 +1004,9 @@ transition            border
 
       {/* STATUS TABS FILTER */}
       <div className="space-y-3 mb-8">
-        {/* ROW 1: GENERAL & DIRECTORY TABS */}
+        {/* ROW 1: STATUS TABS */}
         <div className="flex flex-wrap gap-2.5 items-center">
-          <span className="text-xs font-bold uppercase tracking-wider text-gray-400 mr-1">General:</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-gray-400 mr-1">Status:</span>
           <button
             type="button"
             onClick={() => setStatusFilter('all')}
@@ -1040,17 +1016,17 @@ transition            border
           </button>
           <button
             type="button"
+            onClick={() => setStatusFilter('approved')}
+            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'approved' ? 'bg-green-500 text-black shadow-lg' : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'}`}
+          >
+            Accepted / Approved ({approvedUsers})
+          </button>
+          <button
+            type="button"
             onClick={() => setStatusFilter('pending')}
             className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'pending' ? 'bg-yellow-400 text-black shadow-lg' : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'}`}
           >
             Pending Approval ({pendingUsers})
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('approved')}
-            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'approved' ? 'bg-green-500 text-black shadow-lg' : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'}`}
-          >
-            Approved ({approvedUsers})
           </button>
           <button
             type="button"
@@ -1098,46 +1074,6 @@ transition            border
             className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'slab3' ? 'bg-purple-500 text-white shadow-lg' : 'bg-purple-500/10 border border-purple-500/30 text-purple-300 hover:bg-purple-500/20'}`}
           >
             🔥 Slab 3 ({countSlab3})
-          </button>
-        </div>
-
-        {/* ROW 3: MARATHON CATEGORY & STATUS TABS */}
-        <div className="flex flex-wrap gap-2.5 items-center">
-          <span className="text-xs font-bold uppercase tracking-wider text-cyan-400 mr-1">Marathon:</span>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('marathon_accepted')}
-            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'marathon_accepted' ? 'bg-cyan-400 text-black shadow-lg' : 'bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20'}`}
-          >
-            🏃 Accepted ({countMarathonAccepted})
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('marathon_pending')}
-            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'marathon_pending' ? 'bg-yellow-400 text-black shadow-lg' : 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/20'}`}
-          >
-            ⏳ Pending ({countMarathonPending})
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('marathon_draft')}
-            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'marathon_draft' ? 'bg-rose-500 text-white shadow-lg' : 'bg-rose-500/10 border border-rose-500/30 text-rose-300 hover:bg-rose-500/20'}`}
-          >
-            📝 Incomplete / Drafts ({countMarathonDraft})
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('5k')}
-            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === '5k' ? 'bg-teal-400 text-black shadow-lg' : 'bg-white/5 border border-teal-500/30 text-teal-300 hover:bg-white/10'}`}
-          >
-            🏃‍♂️ 5K ({count5k})
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('3k')}
-            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === '3k' ? 'bg-violet-500 text-white shadow-lg' : 'bg-white/5 border border-violet-500/30 text-violet-300 hover:bg-white/10'}`}
-          >
-            🏃‍♀️ 3K ({count3k})
           </button>
         </div>
       </div>
