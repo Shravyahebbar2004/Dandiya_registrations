@@ -1449,52 +1449,49 @@ export default function RegisterPage({
             )}
 
             <div>
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider">
-                  Registering Email ID <span className="text-rose-400">*</span>
-                </label>
-                {formData.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim()) && (
-                  <button
-                    type="button"
-                    onClick={() => triggerSendOtp()}
-                    disabled={sendingOtpQuick}
-                    className={`text-xs px-3 py-1 rounded-xl font-bold transition flex items-center gap-1 ${
-                      isOtpSent && lastSentEmail === formData.email.trim().toLowerCase()
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                        : 'bg-amber-500 hover:bg-amber-600 text-black shadow-sm'
-                    }`}
-                  >
-                    {sendingOtpQuick ? (
-                      'Sending OTP...'
-                    ) : isOtpSent && lastSentEmail === formData.email.trim().toLowerCase() ? (
-                      '✓ OTP Sent (Resend)'
-                    ) : (
-                      'Send OTP Now 📩'
-                    )}
-                  </button>
-                )}
+              <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
+                Registering Email ID <span className="text-rose-400">*</span>
+              </label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="name@example.com"
+                  value={formData.email}
+                  onChange={(e) => {
+                    handleChange(e);
+                    if (isOtpSent && e.target.value.trim().toLowerCase() !== lastSentEmail) {
+                      setIsOtpSent(false);
+                    }
+                  }}
+                  required
+                  className="flex-1 p-4 rounded-2xl bg-black/40 border border-white/10 text-white font-medium focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition"
+                />
+                <button
+                  type="button"
+                  onClick={() => triggerSendOtp(formData.email, true)}
+                  disabled={sendingOtpQuick || !formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())}
+                  className={`px-5 py-4 rounded-2xl font-bold text-sm transition shrink-0 shadow-md ${
+                    isOtpSent && lastSentEmail === formData.email.trim().toLowerCase()
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                      : 'bg-amber-500 hover:bg-amber-600 text-black disabled:opacity-40 disabled:cursor-not-allowed'
+                  }`}
+                >
+                  {sendingOtpQuick ? (
+                    'Sending...'
+                  ) : isOtpSent && lastSentEmail === formData.email.trim().toLowerCase() ? (
+                    '✓ OTP Sent (Resend)'
+                  ) : (
+                    'Send OTP 📩'
+                  )}
+                </button>
               </div>
-              <input
-                type="email"
-                name="email"
-                placeholder="name@example.com"
-                value={formData.email}
-                onChange={(e) => {
-                  handleChange(e);
-                  if (isOtpSent && e.target.value.trim().toLowerCase() !== lastSentEmail) {
-                    setIsOtpSent(false);
-                  }
-                }}
-                onBlur={() => triggerSendOtp()}
-                required
-                className="w-full p-4 rounded-2xl bg-black/40 border border-white/10 text-white font-medium focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition"
-              />
               <p className="text-xs text-amber-300/80 mt-1.5 flex items-center gap-1.5">
                 <span>📩</span> Your official QR ticket pass will be delivered directly to this email ID.
               </p>
               {isOtpSent && lastSentEmail === formData.email.trim().toLowerCase() && (
                 <p className="text-xs text-emerald-400 mt-1.5 font-bold flex items-center gap-1">
-                  <span>✓</span> OTP requested for {lastSentEmail}. You will enter code upon submitting registration.
+                  <span>✓</span> Verification code sent to {lastSentEmail}. Check your inbox!
                 </p>
               )}
             </div>
