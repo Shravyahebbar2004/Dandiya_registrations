@@ -73,6 +73,43 @@ export default function RegisterPage({
   const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
   const [couponMessage, setCouponMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // INSTANT OTP TRIGGER STATES
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [sendingOtpQuick, setSendingOtpQuick] = useState(false);
+  const [lastSentEmail, setLastSentEmail] = useState('');
+
+  const triggerSendOtp = async (emailOverride?: string) => {
+    const targetEmail = (emailOverride || formData.email).trim().toLowerCase();
+    if (!targetEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(targetEmail)) {
+      return;
+    }
+    if (sendingOtpQuick || (isOtpSent && lastSentEmail === targetEmail)) {
+      return;
+    }
+
+    try {
+      setSendingOtpQuick(true);
+      const draftData = new FormData();
+      draftData.append('email', targetEmail);
+      draftData.append('full_name', formData.full_name.trim() || 'Registrant');
+      draftData.append('event_id', id);
+
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/send-otp`,
+        draftData
+      );
+
+      if (response.data.success) {
+        setIsOtpSent(true);
+        setLastSentEmail(targetEmail);
+      }
+    } catch (err) {
+      console.log('Error triggering OTP:', err);
+    } finally {
+      setSendingOtpQuick(false);
+    }
+  };
+
   const handleApplyCoupon = () => {
     if (!couponInput.trim()) {
       setCouponMessage({ type: 'error', text: 'Please enter a coupon code.' });
@@ -1327,22 +1364,112 @@ export default function RegisterPage({
               />
             </div>
 
+            {/* OTHER TICKET HOLDERS (MOVED DIRECTLY BELOW FULL NAME) */}
+            {allowedEntries > 1 && !isMarathon && (
+              <div className="pt-2 pb-2 space-y-4">
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
+                  <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+                    <h3 className="text-sm font-bold text-amber-300 flex items-center gap-2">
+                      <span>👥</span> Other Ticket Holders ({allowedEntries - 1} Names Required)
+                    </h3>
+                    <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${
+                      otherAttendees.length >= allowedEntries - 1
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                        : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                    }`}>
+                      {otherAttendees.length} of {allowedEntries - 1} Entered
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-300">
+                    Ticket #1 is for <strong className="text-white">{formData.full_name || 'Primary Registrant'}</strong>. Please enter the remaining <strong className="text-white">{allowedEntries - 1}</strong> participant names separated by commas (e.g. <span className="text-amber-200 font-mono">Rahul, Sneha, Amit</span>).
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
+                    Other Participants' Names (Separated by Commas: a, b, c) <span className="text-rose-400">*</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Enter names separated by commas: e.g. Rahul Sharma, Priya Patel, Amit Verma"
+                    value={otherParticipantsText}
+                    onChange={(e) => setOtherParticipantsText(e.target.value)}
+                    required
+                    className="w-full p-4 rounded-2xl bg-black/40 border border-white/10 text-white font-medium focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition text-sm resize-none"
+                  />
+                </div>
+
+                {/* LIVE PREVIEW OF ENTERED NAMES */}
+                {otherAttendees.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
+                      Parsed Ticket Holders:
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {otherAttendees.map((name, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/5 border border-white/15 text-xs text-gray-200"
+                        >
+                          <span className="text-amber-400 font-bold">Ticket #{idx + 2}:</span>
+                          <span>{name}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div>
-              <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
-                Registering Email ID <span className="text-rose-400">*</span>
-              </label>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider">
+                  Registering Email ID <span className="text-rose-400">*</span>
+                </label>
+                {formData.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim()) && (
+                  <button
+                    type="button"
+                    onClick={() => triggerSendOtp()}
+                    disabled={sendingOtpQuick}
+                    className={`text-xs px-3 py-1 rounded-xl font-bold transition flex items-center gap-1 ${
+                      isOtpSent && lastSentEmail === formData.email.trim().toLowerCase()
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                        : 'bg-amber-500 hover:bg-amber-600 text-black shadow-sm'
+                    }`}
+                  >
+                    {sendingOtpQuick ? (
+                      'Sending OTP...'
+                    ) : isOtpSent && lastSentEmail === formData.email.trim().toLowerCase() ? (
+                      '✓ OTP Sent (Resend)'
+                    ) : (
+                      'Send OTP Now 📩'
+                    )}
+                  </button>
+                )}
+              </div>
               <input
                 type="email"
                 name="email"
                 placeholder="name@example.com"
                 value={formData.email}
-                onChange={handleChange}
+                onChange={(e) => {
+                  handleChange(e);
+                  if (isOtpSent && e.target.value.trim().toLowerCase() !== lastSentEmail) {
+                    setIsOtpSent(false);
+                  }
+                }}
+                onBlur={() => triggerSendOtp()}
                 required
                 className="w-full p-4 rounded-2xl bg-black/40 border border-white/10 text-white font-medium focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition"
               />
               <p className="text-xs text-amber-300/80 mt-1.5 flex items-center gap-1.5">
                 <span>📩</span> Your official QR ticket pass will be delivered directly to this email ID.
               </p>
+              {isOtpSent && lastSentEmail === formData.email.trim().toLowerCase() && (
+                <p className="text-xs text-emerald-400 mt-1.5 font-bold flex items-center gap-1">
+                  <span>✓</span> OTP requested for {lastSentEmail}. You will enter code upon submitting registration.
+                </p>
+              )}
             </div>
 
             <div>
@@ -1410,63 +1537,6 @@ export default function RegisterPage({
                   </div>
                 )}
               </>
-            )}
-
-            {/* OTHER TICKET HOLDERS (COMMA SEPARATED: a, b, c) */}
-            {allowedEntries > 1 && !isMarathon && (
-              <div className="pt-4 border-t border-white/10 space-y-4">
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
-                  <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
-                    <h3 className="text-sm font-bold text-amber-300 flex items-center gap-2">
-                      <span>👥</span> Other Ticket Holders ({allowedEntries - 1} Names Required)
-                    </h3>
-                    <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${
-                      otherAttendees.length >= allowedEntries - 1
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                        : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                    }`}>
-                      {otherAttendees.length} of {allowedEntries - 1} Entered
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-300">
-                    Ticket #1 is for <strong className="text-white">{formData.full_name || 'Primary Registrant'}</strong>. Please enter the remaining <strong className="text-white">{allowedEntries - 1}</strong> participant names separated by commas (e.g. <span className="text-amber-200 font-mono">Rahul, Sneha, Amit</span>).
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
-                    Other Participants' Names (Separated by Commas: a, b, c) <span className="text-rose-400">*</span>
-                  </label>
-                  <textarea
-                    rows={2}
-                    placeholder="Enter names separated by commas: e.g. Rahul Sharma, Priya Patel, Amit Verma"
-                    value={otherParticipantsText}
-                    onChange={(e) => setOtherParticipantsText(e.target.value)}
-                    required
-                    className="w-full p-4 rounded-2xl bg-black/40 border border-white/10 text-white font-medium focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition text-sm resize-none"
-                  />
-                </div>
-
-                {/* LIVE PREVIEW OF ENTERED NAMES */}
-                {otherAttendees.length > 0 && (
-                  <div className="space-y-1.5 pt-1">
-                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
-                      Parsed Ticket Holders:
-                    </span>
-                    <div className="flex flex-wrap gap-2">
-                      {otherAttendees.map((name, idx) => (
-                        <span
-                          key={idx}
-                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/5 border border-white/15 text-xs text-gray-200"
-                        >
-                          <span className="text-amber-400 font-bold">Ticket #{idx + 2}:</span>
-                          <span>{name}</span>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
             )}
           </div>
         </div>
