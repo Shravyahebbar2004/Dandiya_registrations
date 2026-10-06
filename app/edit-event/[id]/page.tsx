@@ -277,6 +277,13 @@ export default function EditEventPage() {
           feature3_value: event.feature3_value || 'Live'
         });
 
+        if (event.banner_url) {
+          const bannerUrl = event.banner_url.startsWith('http')
+            ? event.banner_url
+            : `${process.env.NEXT_PUBLIC_API_URL}${event.banner_url}`;
+          setBannerPreview(bannerUrl);
+        }
+
         if (event.custom_pricing) {
           try {
             const parsed = typeof event.custom_pricing === 'string' ? JSON.parse(event.custom_pricing) : event.custom_pricing;
@@ -361,6 +368,14 @@ export default function EditEventPage() {
 
   };
 
+  const handleBanner = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setBannerFile(file);
+      setBannerPreview(URL.createObjectURL(file));
+    }
+  };
+
   // =====================================
   // HANDLE SUBMIT
   // =====================================
@@ -374,36 +389,46 @@ export default function EditEventPage() {
     setLoading(true);
 
     try {
+      const data = new FormData();
+
+      Object.entries(formData).forEach(([key, val]) => {
+        data.append(key, val || '');
+      });
+
       const isDandiyaCategory = formData.category?.toLowerCase()?.includes('dandiya') || formData.category?.toLowerCase()?.includes('garba');
 
-      const submitData: any = {
-        ...formData,
-        custom_pricing: isDandiyaCategory 
-          ? JSON.stringify({ type: 'dandiya_tiered', ...dandiyaPricing }) 
-          : JSON.stringify(customPricing),
-        coupons: JSON.stringify(partnerCoupons)
-      };
-
       if (isDandiyaCategory) {
-        submitData.slab1_solo_price = dandiyaPricing.slab1.price_1_4;
-        submitData.slab1_couple_price = String(Number(dandiyaPricing.slab1.price_1_4) * 2);
-        submitData.slab1_group_price = String(Number(dandiyaPricing.slab1.price_5_9) * 4);
-        submitData.slab1_deadline = dandiyaPricing.slab1.deadline;
-        submitData.slab2_solo_price = dandiyaPricing.slab2.price_1_4;
-        submitData.slab2_couple_price = String(Number(dandiyaPricing.slab2.price_1_4) * 2);
-        submitData.slab2_group_price = String(Number(dandiyaPricing.slab2.price_5_9) * 4);
-        submitData.slab2_deadline = dandiyaPricing.slab2.deadline || formData.slab2_deadline;
-        if (dandiyaPricing.slab3.enabled) {
-          submitData.slab3_solo_price = dandiyaPricing.slab3.price_1_4;
-          submitData.slab3_deadline = dandiyaPricing.slab3.deadline;
+        data.append('custom_pricing', JSON.stringify({
+          type: 'dandiya_tiered',
+          ...dandiyaPricing
+        }));
+        data.append('slab1_solo_price', dandiyaPricing.slab1.price_1_4 || '');
+        data.append('slab1_couple_price', String(Number(dandiyaPricing.slab1.price_1_4 || 0) * 2));
+        data.append('slab1_group_price', String(Number(dandiyaPricing.slab1.price_5_9 || 0) * 4));
+        data.append('slab1_deadline', dandiyaPricing.slab1.deadline || '');
+        data.append('slab2_solo_price', dandiyaPricing.slab2.price_1_4 || '');
+        data.append('slab2_couple_price', String(Number(dandiyaPricing.slab2.price_1_4 || 0) * 2));
+        data.append('slab2_group_price', String(Number(dandiyaPricing.slab2.price_5_9 || 0) * 4));
+        data.append('slab2_deadline', dandiyaPricing.slab2.deadline || formData.slab2_deadline || '');
+        if (dandiyaPricing.slab3?.enabled) {
+          data.append('slab3_solo_price', dandiyaPricing.slab3.price_1_4 || '');
+          data.append('slab3_deadline', dandiyaPricing.slab3.deadline || '');
         }
+      } else {
+        data.append('custom_pricing', JSON.stringify(customPricing));
+      }
+
+      data.append('coupons', JSON.stringify(partnerCoupons));
+
+      if (bannerFile) {
+        data.append('banner', bannerFile);
       }
 
       const response = await axios.put(
         `${process.env.NEXT_PUBLIC_API_URL}/api/edit-event/${id}`,
-        submitData,
+        data,
         {
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'multipart/form-data' }
         }
       );
 
@@ -416,7 +441,7 @@ export default function EditEventPage() {
       console.log(error);
 
       alert(
-        'Event Creation Failed'
+        'Event Update Failed'
       );
 
     } finally {
@@ -1692,6 +1717,48 @@ Tell attendees what makes your event special...
 
               </div>
 
+            </div>
+
+            {/* EVENT POSTER / BANNER UPLOAD */}
+            <div className="mb-10">
+              <h2 className="text-2xl font-bold mb-4 text-cyan-300 flex items-center gap-2">
+                <ImageIcon size={24} />
+                Event Poster / Banner Image
+              </h2>
+              <div className="p-6 rounded-3xl bg-black/40 border border-white/10 text-center">
+                {bannerPreview ? (
+                  <div className="relative mb-4 group rounded-2xl overflow-hidden max-h-64 border border-white/20">
+                    <img
+                      src={bannerPreview}
+                      alt="Banner Preview"
+                      className="w-full h-56 object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                      <p className="text-white font-bold text-sm">Click below to replace poster</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-8 mb-4 border-2 border-dashed border-white/20 rounded-2xl bg-white/5 flex flex-col items-center justify-center">
+                    <ImageIcon size={48} className="text-gray-400 mb-2" />
+                    <p className="text-gray-400 text-sm">No poster image uploaded yet</p>
+                  </div>
+                )}
+                <label className="cursor-pointer inline-flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-600 hover:to-violet-700 text-white font-bold px-6 py-3.5 rounded-2xl transition shadow-lg hover:scale-105">
+                  <ImageIcon size={20} />
+                  {bannerPreview ? 'Change Event Poster Image' : 'Upload Event Poster Image'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleBanner}
+                    className="hidden"
+                  />
+                </label>
+                {bannerFile && (
+                  <p className="text-emerald-400 text-xs mt-3 font-semibold">
+                    New poster selected: {bannerFile.name}
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* SUBMIT */}
