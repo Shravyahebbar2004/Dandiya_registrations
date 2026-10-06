@@ -139,10 +139,14 @@ export default function ScannerPage({
 
 
 
-          } catch (error) {
-
+          } catch (error: any) {
             console.log(error);
-
+            if (error.response?.status === 401) {
+              localStorage.removeItem('scanner_token');
+              localStorage.removeItem('admin_token');
+              setIsAuthorized(false);
+              router.push('/scanner-login');
+            }
           }
 
         },

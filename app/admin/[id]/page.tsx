@@ -351,8 +351,20 @@ export default function AdminPage({
 
   const fetchUsers = async () => {
     try {
+      const adminToken = localStorage.getItem('admin_token');
+      if (!adminToken) {
+        setIsAuthorized(false);
+        router.push('/admin-login');
+        return;
+      }
+
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/${id}`,
+        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/admin/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${adminToken}`
+          }
+        }
       );
 
       const rawRegistrations: User[] = response.data.registrations || [];
@@ -361,8 +373,13 @@ export default function AdminPage({
       );
 
       setUsers(sortedRegistrations);
-    } catch (error) {
+    } catch (error: any) {
       console.log(error);
+      if (error.response?.status === 401) {
+        localStorage.removeItem('admin_token');
+        setIsAuthorized(false);
+        router.push('/admin-login');
+      }
     }
   };
 
@@ -372,13 +389,26 @@ export default function AdminPage({
 
   const fetchAnalytics = async () => {
     try {
+      const adminToken = localStorage.getItem('admin_token');
+      if (!adminToken) return;
+
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/analytics`,
+        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/analytics`,
+        {
+          headers: {
+            Authorization: `Bearer ${adminToken}`
+          }
+        }
       );
 
       setAnalytics(response.data);
-    } catch (error) {
+    } catch (error: any) {
       console.log(error);
+      if (error.response?.status === 401) {
+        localStorage.removeItem('admin_token');
+        setIsAuthorized(false);
+        router.push('/admin-login');
+      }
     }
   };
 
@@ -388,18 +418,31 @@ export default function AdminPage({
 
   const approvePayment = async (id: number) => {
     try {
+      const adminToken = localStorage.getItem('admin_token');
       setApprovingId(id);
       await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/approve-payment/${id}`,
+        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/approve-payment/${id}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${adminToken}`
+          }
+        }
       );
 
       alert('Payment Approved & QR Sent');
 
       fetchUsers();
       fetchAnalytics();
-    } catch (error) {
+    } catch (error: any) {
       console.log(error);
-      alert('Approval Failed');
+      if (error.response?.status === 401) {
+        localStorage.removeItem('admin_token');
+        setIsAuthorized(false);
+        router.push('/admin-login');
+      } else {
+        alert('Approval Failed');
+      }
     } finally {
       setApprovingId(null);
     }
