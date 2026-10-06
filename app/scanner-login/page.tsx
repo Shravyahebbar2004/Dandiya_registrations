@@ -33,6 +33,7 @@ export default function ScannerLoginPage() {
         }
       );
 
+      sessionStorage.setItem('scanner_token', response.data.token);
       localStorage.setItem('scanner_token', response.data.token);
       router.push(`/scanner/${response.data.event_id || 1}`);
     } catch (error) {

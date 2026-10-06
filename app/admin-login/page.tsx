@@ -38,6 +38,7 @@ export default function AdminLogin() {
           `${apiUrl}/api/admin/login`,
           { username: cleanUsername, password: cleanPassword }
         );
+        sessionStorage.setItem('admin_token', response.data.token);
         localStorage.setItem('admin_token', response.data.token);
         router.push(`/admin/${response.data.event_id || 1}`);
       } else {
@@ -45,6 +46,7 @@ export default function AdminLogin() {
           `${apiUrl}/api/scanner/login`,
           { username: cleanUsername, password: cleanPassword }
         );
+        sessionStorage.setItem('scanner_token', response.data.token);
         localStorage.setItem('scanner_token', response.data.token);
         router.push(`/scanner/${response.data.event_id || 1}`);
       }

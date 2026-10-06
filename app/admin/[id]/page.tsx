@@ -351,7 +351,7 @@ export default function AdminPage({
 
   const fetchUsers = async () => {
     try {
-      const adminToken = localStorage.getItem('admin_token');
+      const adminToken = sessionStorage.getItem('admin_token') || localStorage.getItem('admin_token');
       if (!adminToken) {
         setIsAuthorized(false);
         router.push('/admin-login');
@@ -377,6 +377,7 @@ export default function AdminPage({
       console.log(error);
       if (error.response?.status === 401) {
         localStorage.removeItem('admin_token');
+        sessionStorage.removeItem('admin_token');
         setIsAuthorized(false);
         router.push('/admin-login');
       }
@@ -389,7 +390,7 @@ export default function AdminPage({
 
   const fetchAnalytics = async () => {
     try {
-      const adminToken = localStorage.getItem('admin_token');
+      const adminToken = sessionStorage.getItem('admin_token') || localStorage.getItem('admin_token');
       if (!adminToken) return;
 
       const response = await axios.get(
@@ -406,6 +407,7 @@ export default function AdminPage({
       console.log(error);
       if (error.response?.status === 401) {
         localStorage.removeItem('admin_token');
+        sessionStorage.removeItem('admin_token');
         setIsAuthorized(false);
         router.push('/admin-login');
       }
@@ -418,7 +420,7 @@ export default function AdminPage({
 
   const approvePayment = async (id: number) => {
     try {
-      const adminToken = localStorage.getItem('admin_token');
+      const adminToken = sessionStorage.getItem('admin_token') || localStorage.getItem('admin_token');
       setApprovingId(id);
       await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL || ''}/api/approve-payment/${id}`,
@@ -438,6 +440,7 @@ export default function AdminPage({
       console.log(error);
       if (error.response?.status === 401) {
         localStorage.removeItem('admin_token');
+        sessionStorage.removeItem('admin_token');
         setIsAuthorized(false);
         router.push('/admin-login');
       } else {
@@ -455,7 +458,7 @@ export default function AdminPage({
   useEffect(() => {
     setMounted(true);
 
-    const adminToken = localStorage.getItem('admin_token');
+    const adminToken = sessionStorage.getItem('admin_token') || localStorage.getItem('admin_token');
 
     if (!adminToken) {
       setIsAuthorized(false);
@@ -718,6 +721,9 @@ export default function AdminPage({
             onClick={() => {
               localStorage.removeItem('admin_token');
               localStorage.removeItem('scanner_token');
+              sessionStorage.removeItem('admin_token');
+              sessionStorage.removeItem('scanner_token');
+              setIsAuthorized(false);
               router.push('/admin-login');
             }}
             className="
