@@ -1,14 +1,13 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 
 export default function AdminIndexPage() {
-  const router = useRouter();
-
   useEffect(() => {
-    router.push('/admin-login');
-  }, [router]);
+    if (typeof window !== 'undefined') {
+      window.location.href = '/admin-login';
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center text-white">

@@ -354,7 +354,7 @@ export default function AdminPage({
       const adminToken = sessionStorage.getItem('admin_token') || localStorage.getItem('admin_token');
       if (!adminToken) {
         setIsAuthorized(false);
-        router.push('/admin-login');
+        if (typeof window !== 'undefined') window.location.href = '/admin-login';
         return;
       }
 
@@ -379,7 +379,7 @@ export default function AdminPage({
       localStorage.removeItem('admin_token');
       sessionStorage.removeItem('admin_token');
       setIsAuthorized(false);
-      router.push('/admin-login');
+      if (typeof window !== 'undefined') window.location.href = '/admin-login';
     }
   };
 
@@ -408,7 +408,7 @@ export default function AdminPage({
         localStorage.removeItem('admin_token');
         sessionStorage.removeItem('admin_token');
         setIsAuthorized(false);
-        router.push('/admin-login');
+        if (typeof window !== 'undefined') window.location.href = '/admin-login';
       }
     }
   };
@@ -441,7 +441,7 @@ export default function AdminPage({
         localStorage.removeItem('admin_token');
         sessionStorage.removeItem('admin_token');
         setIsAuthorized(false);
-        router.push('/admin-login');
+        if (typeof window !== 'undefined') window.location.href = '/admin-login';
       } else {
         alert('Approval Failed');
       }
@@ -461,7 +461,9 @@ export default function AdminPage({
 
     if (!adminToken) {
       setIsAuthorized(false);
-      router.push('/admin-login');
+      if (typeof window !== 'undefined') {
+        window.location.href = '/admin-login';
+      }
       return;
     }
 
@@ -722,7 +724,7 @@ export default function AdminPage({
               sessionStorage.removeItem('admin_token');
               sessionStorage.removeItem('scanner_token');
               setIsAuthorized(false);
-              router.push('/admin-login');
+              if (typeof window !== 'undefined') window.location.href = '/admin-login';
             }}
             className="
               bg-red-500
