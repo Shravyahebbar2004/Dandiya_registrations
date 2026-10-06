@@ -373,14 +373,13 @@ export default function AdminPage({
       );
 
       setUsers(sortedRegistrations);
+      setIsAuthorized(true);
     } catch (error: any) {
-      console.log(error);
-      if (error.response?.status === 401) {
-        localStorage.removeItem('admin_token');
-        sessionStorage.removeItem('admin_token');
-        setIsAuthorized(false);
-        router.push('/admin-login');
-      }
+      console.log('Admin Auth Error:', error);
+      localStorage.removeItem('admin_token');
+      sessionStorage.removeItem('admin_token');
+      setIsAuthorized(false);
+      router.push('/admin-login');
     }
   };
 
@@ -466,7 +465,6 @@ export default function AdminPage({
       return;
     }
 
-    setIsAuthorized(true);
     fetchUsers();
     fetchAnalytics();
 
