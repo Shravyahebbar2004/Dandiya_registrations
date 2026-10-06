@@ -129,13 +129,28 @@ export default function AdminPage({
       return xml;
     };
 
+    const isMarathonUser = (user: User) => {
+      const t = user.ticket_type?.toLowerCase() || '';
+      return t.includes('5k') || t.includes('3k') || t.includes('10k') || t.includes('marathon') ||
+             Boolean(user.emergency_contact_name && user.blood_group);
+    };
+
+    const sortedAsc = [...users].sort((a, b) => Number(a.registration_id) - Number(b.registration_id));
+
     const sheetsData = [
       { name: 'Sheet 1 - All Registrations', data: users },
       { name: 'Sheet 2 - Pending Approval', data: users.filter((u) => u.payment_status === 'pending') },
       { name: 'Sheet 3 - Approved', data: users.filter((u) => u.payment_status === 'approved') },
       { name: 'Sheet 4 - Incomplete Drafts', data: users.filter((u) => u.payment_status === 'draft') },
-      { name: 'Sheet 5 - 5K Category (Approved)', data: users.filter((u) => u.ticket_type?.toUpperCase().includes('5K') && u.payment_status === 'approved') },
-      { name: 'Sheet 6 - 3K Category (Approved)', data: users.filter((u) => u.ticket_type?.toUpperCase().includes('3K') && u.payment_status === 'approved') }
+      { name: 'Sheet 5 - Flash Sale Timeline', data: sortedAsc.filter((u, idx) => idx < 50 || u.coupon_code?.toLowerCase().includes('flash')) },
+      { name: 'Sheet 6 - Early Bird (Slab 1)', data: sortedAsc.filter((u, idx) => idx >= 50 && idx < 150) },
+      { name: 'Sheet 7 - Normal (Slab 2)', data: sortedAsc.filter((u, idx) => idx >= 150 && idx < 300) },
+      { name: 'Sheet 8 - Slab 3 Timeline', data: sortedAsc.filter((u, idx) => idx >= 300) },
+      { name: 'Sheet 9 - Marathon Accepted', data: users.filter((u) => isMarathonUser(u) && u.payment_status === 'approved') },
+      { name: 'Sheet 10 - Marathon Pending', data: users.filter((u) => isMarathonUser(u) && u.payment_status === 'pending') },
+      { name: 'Sheet 11 - Marathon Incomplete Drafts', data: users.filter((u) => isMarathonUser(u) && u.payment_status === 'draft') },
+      { name: 'Sheet 12 - 5K Category', data: users.filter((u) => u.ticket_type?.toUpperCase().includes('5K') && u.payment_status === 'approved') },
+      { name: 'Sheet 13 - 3K Category', data: users.filter((u) => u.ticket_type?.toUpperCase().includes('3K') && u.payment_status === 'approved') }
     ];
 
     let workbookXml = `<?xml version="1.0"?>
@@ -352,7 +367,23 @@ export default function AdminPage({
 
   const [users, setUsers] = useState<User[]>([]);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'draft' | '5k' | '3k' | 'emails'>('all');
+  type StatusFilterType =
+    | 'all'
+    | 'pending'
+    | 'approved'
+    | 'draft'
+    | 'flash_sale'
+    | 'slab1'
+    | 'slab2'
+    | 'slab3'
+    | 'marathon_accepted'
+    | 'marathon_pending'
+    | 'marathon_draft'
+    | '5k'
+    | '3k'
+    | 'emails';
+
+  const [statusFilter, setStatusFilter] = useState<StatusFilterType>('all');
   const [mounted, setMounted] = useState(false);
   const [approvingId, setApprovingId] = useState<number | null>(null);
 
@@ -426,9 +457,10 @@ export default function AdminPage({
   useEffect(() => {
     setMounted(true);
 
-    const token = localStorage.getItem('admin_token');
+    const adminToken = localStorage.getItem('admin_token');
+    const scannerToken = localStorage.getItem('scanner_token');
 
-    if (!token) {
+    if (!adminToken && !scannerToken) {
       router.push('/admin-login');
       return;
     }
@@ -508,6 +540,25 @@ export default function AdminPage({
     });
   }, [emailDirectoryMap, search]);
 
+  const isMarathonUser = (user: User) => {
+    const t = user.ticket_type?.toLowerCase() || '';
+    return t.includes('5k') || t.includes('3k') || t.includes('10k') || t.includes('marathon') ||
+           Boolean(user.emergency_contact_name && user.blood_group);
+  };
+
+  const sortedAscUsers = useMemo(() => {
+    return [...users].sort((a, b) => Number(a.registration_id) - Number(b.registration_id));
+  }, [users]);
+
+  const countFlashSale = sortedAscUsers.filter((u, idx) => idx < 50 || u.coupon_code?.toLowerCase().includes('flash')).length;
+  const countSlab1 = sortedAscUsers.filter((u, idx) => idx >= 50 && idx < 150).length;
+  const countSlab2 = sortedAscUsers.filter((u, idx) => idx >= 150 && idx < 300).length;
+  const countSlab3 = sortedAscUsers.filter((u, idx) => idx >= 300).length;
+
+  const countMarathonAccepted = users.filter((u) => isMarathonUser(u) && u.payment_status === 'approved').length;
+  const countMarathonPending = users.filter((u) => isMarathonUser(u) && u.payment_status === 'pending').length;
+  const countMarathonDraft = users.filter((u) => isMarathonUser(u) && u.payment_status === 'draft').length;
+
   // ====================================
   // SEARCH & CATEGORY FILTER WITH BIB SORT
   // ====================================
@@ -525,6 +576,27 @@ export default function AdminPage({
       if (statusFilter === 'pending') return user.payment_status === 'pending';
       if (statusFilter === 'approved') return user.payment_status === 'approved';
       if (statusFilter === 'draft') return user.payment_status === 'draft';
+      
+      // Marathon Status Tabs
+      if (statusFilter === 'marathon_accepted') return isMarathonUser(user) && user.payment_status === 'approved';
+      if (statusFilter === 'marathon_pending') return isMarathonUser(user) && user.payment_status === 'pending';
+      if (statusFilter === 'marathon_draft') return isMarathonUser(user) && user.payment_status === 'draft';
+
+      // Dandiya Timeline Slabs
+      const idx = sortedAscUsers.findIndex((u) => u.registration_id === user.registration_id);
+      if (statusFilter === 'flash_sale') {
+        return idx < 50 || user.coupon_code?.toLowerCase().includes('flash');
+      }
+      if (statusFilter === 'slab1') {
+        return idx >= 50 && idx < 150;
+      }
+      if (statusFilter === 'slab2') {
+        return idx >= 150 && idx < 300;
+      }
+      if (statusFilter === 'slab3') {
+        return idx >= 300;
+      }
+
       if (statusFilter === '5k') return user.ticket_type?.toUpperCase().includes('5K') && user.payment_status === 'approved';
       if (statusFilter === '3k') return user.ticket_type?.toUpperCase().includes('3K') && user.payment_status === 'approved';
       return true;
@@ -649,6 +721,7 @@ export default function AdminPage({
           <button
             onClick={() => {
               localStorage.removeItem('admin_token');
+              localStorage.removeItem('scanner_token');
               router.push('/admin-login');
             }}
             className="
@@ -954,56 +1027,119 @@ transition            border
       )}
 
       {/* STATUS TABS FILTER */}
-      <div className="flex flex-wrap gap-3 mb-6">
-        <button
-          type="button"
-          onClick={() => setStatusFilter('all')}
-          className={`px-5 py-2.5 rounded-xl font-bold text-sm transition ${statusFilter === 'all' ? 'bg-yellow-400 text-black shadow-lg' : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'}`}
-        >
-          All ({users.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setStatusFilter('pending')}
-          className={`px-5 py-2.5 rounded-xl font-bold text-sm transition ${statusFilter === 'pending' ? 'bg-yellow-400 text-black shadow-lg' : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'}`}
-        >
-          Pending Approval ({pendingUsers})
-        </button>
-        <button
-          type="button"
-          onClick={() => setStatusFilter('approved')}
-          className={`px-5 py-2.5 rounded-xl font-bold text-sm transition ${statusFilter === 'approved' ? 'bg-green-500 text-black shadow-lg' : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'}`}
-        >
-          Approved ({approvedUsers})
-        </button>
-        <button
-          type="button"
-          onClick={() => setStatusFilter('draft')}
-          className={`px-5 py-2.5 rounded-xl font-bold text-sm transition ${statusFilter === 'draft' ? 'bg-orange-500 text-black shadow-lg' : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'}`}
-        >
-          ⚠️ Incomplete / Drafts ({draftUsers})
-        </button>
-        <button
-          type="button"
-          onClick={() => setStatusFilter('5k')}
-          className={`px-5 py-2.5 rounded-xl font-bold text-sm transition ${statusFilter === '5k' ? 'bg-cyan-400 text-black shadow-lg' : 'bg-white/5 border border-cyan-500/30 text-cyan-300 hover:bg-white/10'}`}
-        >
-          🏃‍♂️ 5K Category ({count5k})
-        </button>
-        <button
-          type="button"
-          onClick={() => setStatusFilter('3k')}
-          className={`px-5 py-2.5 rounded-xl font-bold text-sm transition ${statusFilter === '3k' ? 'bg-purple-500 text-white shadow-lg' : 'bg-white/5 border border-purple-500/30 text-purple-300 hover:bg-white/10'}`}
-        >
-          🏃‍♀️ 3K Category ({count3k})
-        </button>
-        <button
-          type="button"
-          onClick={() => setStatusFilter('emails')}
-          className={`px-5 py-2.5 rounded-xl font-bold text-sm transition ${statusFilter === 'emails' ? 'bg-amber-400 text-black shadow-lg' : 'bg-white/5 border border-amber-400/40 text-amber-300 hover:bg-white/10'}`}
-        >
-          📧 Registered Email IDs ({uniqueEmailCount})
-        </button>
+      <div className="space-y-3 mb-8">
+        {/* ROW 1: GENERAL & DIRECTORY TABS */}
+        <div className="flex flex-wrap gap-2.5 items-center">
+          <span className="text-xs font-bold uppercase tracking-wider text-gray-400 mr-1">General:</span>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('all')}
+            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'all' ? 'bg-yellow-400 text-black shadow-lg' : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'}`}
+          >
+            All ({users.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('pending')}
+            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'pending' ? 'bg-yellow-400 text-black shadow-lg' : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'}`}
+          >
+            Pending Approval ({pendingUsers})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('approved')}
+            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'approved' ? 'bg-green-500 text-black shadow-lg' : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'}`}
+          >
+            Approved ({approvedUsers})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('draft')}
+            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'draft' ? 'bg-orange-500 text-black shadow-lg' : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'}`}
+          >
+            ⚠️ Incomplete / Drafts ({draftUsers})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('emails')}
+            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'emails' ? 'bg-amber-400 text-black shadow-lg' : 'bg-white/5 border border-amber-400/40 text-amber-300 hover:bg-white/10'}`}
+          >
+            📧 Registered Email Directory ({uniqueEmailCount})
+          </button>
+        </div>
+
+        {/* ROW 2: TIMELINE / PRICING SLABS TABS */}
+        <div className="flex flex-wrap gap-2.5 items-center">
+          <span className="text-xs font-bold uppercase tracking-wider text-amber-400 mr-1">Pricing Slabs:</span>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('flash_sale')}
+            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'flash_sale' ? 'bg-amber-500 text-black shadow-lg' : 'bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20'}`}
+          >
+            ⚡ Flash Sale ({countFlashSale})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('slab1')}
+            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'slab1' ? 'bg-emerald-500 text-black shadow-lg' : 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20'}`}
+          >
+            🐦 Early Bird / Slab 1 ({countSlab1})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('slab2')}
+            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'slab2' ? 'bg-blue-500 text-white shadow-lg' : 'bg-blue-500/10 border border-blue-500/30 text-blue-300 hover:bg-blue-500/20'}`}
+          >
+            🎫 Normal / Slab 2 ({countSlab2})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('slab3')}
+            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'slab3' ? 'bg-purple-500 text-white shadow-lg' : 'bg-purple-500/10 border border-purple-500/30 text-purple-300 hover:bg-purple-500/20'}`}
+          >
+            🔥 Slab 3 ({countSlab3})
+          </button>
+        </div>
+
+        {/* ROW 3: MARATHON CATEGORY & STATUS TABS */}
+        <div className="flex flex-wrap gap-2.5 items-center">
+          <span className="text-xs font-bold uppercase tracking-wider text-cyan-400 mr-1">Marathon:</span>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('marathon_accepted')}
+            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'marathon_accepted' ? 'bg-cyan-400 text-black shadow-lg' : 'bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20'}`}
+          >
+            🏃 Accepted ({countMarathonAccepted})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('marathon_pending')}
+            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'marathon_pending' ? 'bg-yellow-400 text-black shadow-lg' : 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/20'}`}
+          >
+            ⏳ Pending ({countMarathonPending})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('marathon_draft')}
+            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'marathon_draft' ? 'bg-rose-500 text-white shadow-lg' : 'bg-rose-500/10 border border-rose-500/30 text-rose-300 hover:bg-rose-500/20'}`}
+          >
+            📝 Incomplete / Drafts ({countMarathonDraft})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('5k')}
+            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === '5k' ? 'bg-teal-400 text-black shadow-lg' : 'bg-white/5 border border-teal-500/30 text-teal-300 hover:bg-white/10'}`}
+          >
+            🏃‍♂️ 5K ({count5k})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('3k')}
+            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === '3k' ? 'bg-violet-500 text-white shadow-lg' : 'bg-white/5 border border-violet-500/30 text-violet-300 hover:bg-white/10'}`}
+          >
+            🏃‍♀️ 3K ({count3k})
+          </button>
+        </div>
       </div>
 
       {/* CONDITIONAL TABLE VIEW */}
