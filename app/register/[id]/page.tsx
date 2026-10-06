@@ -274,6 +274,16 @@ export default function RegisterPage({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  // AUTO-REDIRECT TIMER AFTER SUBMISSION
+  useEffect(() => {
+    if (submitted) {
+      const timer = setTimeout(() => {
+        window.location.href = `/register/${event?.event_id || id}`;
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [submitted, event, id]);
+
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [otp, setOtp] = useState('');
   const [otpSending, setOtpSending] = useState(false);
@@ -761,15 +771,6 @@ export default function RegisterPage({
       </div>
     );
   }
-
-  useEffect(() => {
-    if (submitted) {
-      const timer = setTimeout(() => {
-        window.location.href = `/register/${event?.event_id || id}`;
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [submitted, event, id]);
 
   if (submitted) {
     return (
