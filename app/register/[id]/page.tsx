@@ -756,6 +756,15 @@ export default function RegisterPage({
     );
   }
 
+  useEffect(() => {
+    if (submitted) {
+      const timer = setTimeout(() => {
+        window.location.href = `/register/${event?.event_id || id}`;
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [submitted, event, id]);
+
   if (submitted) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center text-white text-center p-6">
@@ -772,7 +781,7 @@ export default function RegisterPage({
             Your registration is currently pending admin payment verification.
           </p>
 
-          <div className="bg-gradient-to-r from-cyan-500/10 via-violet-500/10 to-pink-500/10 border border-white/10 rounded-3xl p-6 mb-8 text-left space-y-4">
+          <div className="bg-gradient-to-r from-cyan-500/10 via-violet-500/10 to-pink-500/10 border border-white/10 rounded-3xl p-6 mb-6 text-left space-y-4">
             <div className="flex items-start gap-3">
               <span className="text-2xl">📩</span>
               <div>
@@ -794,13 +803,24 @@ export default function RegisterPage({
             </div>
           </div>
 
-          <div className="mb-8">
+          <div className="mb-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              onClick={() => {
+                window.location.href = `/register/${event?.event_id || id}`;
+              }}
+              className="w-full sm:w-auto bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 px-6 py-3.5 rounded-2xl font-bold text-base text-black shadow-xl transition hover:scale-105"
+            >
+              ← Back to Register Page Now
+            </button>
             <Link href={`/my-ticket/${event?.event_id || id}`}>
-              <button className="bg-gradient-to-r from-cyan-500 to-violet-500 hover:from-cyan-600 hover:to-violet-600 px-8 py-3.5 rounded-2xl font-bold text-lg text-white shadow-xl transition hover:scale-105">
+              <button className="w-full sm:w-auto bg-gradient-to-r from-cyan-500 to-violet-500 hover:from-cyan-600 hover:to-violet-600 px-6 py-3.5 rounded-2xl font-bold text-base text-white shadow-xl transition hover:scale-105">
                 Go to Ticket Section 🎟️
               </button>
             </Link>
           </div>
+          <p className="text-xs text-amber-300/80 mb-6 animate-pulse">
+            ⏳ Auto-redirecting back to register page in 5 seconds...
+          </p>
 
           <div className="border-t border-white/10 pt-6 text-gray-400 text-xs md:text-sm">
             <p className="mb-1 text-gray-400">For more information or urgent queries, contact:</p>
@@ -1710,7 +1730,79 @@ export default function RegisterPage({
           </div>
         </div>
 
-        {/* OFFICIAL DYNAMIC LOCAL UPI PAYMENT QR */}
+        {/* MANDATORY CHECKOUT VERIFICATION FIELDS (UTR & SCREENSHOT) */}
+        <div className="bg-white/5 border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-7 md:p-8 mb-8 text-left space-y-5 sm:space-y-6">
+          <div className="border-b border-white/10 pb-3">
+            <h3 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+              <span>📝</span> Payment Confirmation Details
+            </h3>
+            <p className="text-xs text-gray-400 mt-1">
+              Since this is a direct bank transfer, please provide your transaction reference and screenshot for quick admin approval.
+            </p>
+          </div>
+
+          {/* FIELD 1: 12-DIGIT UTR */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-bold text-gray-200 uppercase tracking-wider">
+                12-Digit UTR / UPI Transaction Reference No. <span className="text-rose-400">*</span>
+              </label>
+              <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                Mandatory
+              </span>
+            </div>
+            <input
+              type="text"
+              name="utr"
+              placeholder="e.g. 4289XXXXXXXX (12-digit number)"
+              value={formData.utr}
+              onChange={handleChange}
+              required
+              maxLength={25}
+              className="w-full p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-black/40 border border-white/10 text-white font-mono text-sm tracking-wider focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition placeholder:text-gray-500"
+            />
+            <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1.5">
+              <span>💡</span> You can copy the 12-digit UTR or Transaction ID from your payment success screen in GPay, PhonePe, Paytm, or BHIM.
+            </p>
+          </div>
+
+          {/* FIELD 2: PAYMENT SCREENSHOT */}
+          <div className="pt-2">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-bold text-gray-200 uppercase tracking-wider">
+                Upload Payment Success Screenshot <span className="text-rose-400">*</span>
+              </label>
+              <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                Mandatory
+              </span>
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setPaymentProof(e.target.files?.[0] || null)}
+              required
+              className="w-full text-gray-300 file:mr-3 sm:file:mr-4 file:py-2.5 sm:file:py-3.5 file:px-4 sm:file:px-6 file:rounded-xl file:border-0 file:text-xs sm:file:text-sm file:font-bold file:bg-amber-500 file:text-black hover:file:bg-amber-400 transition cursor-pointer bg-black/40 rounded-xl sm:rounded-2xl border border-white/10 p-2.5 sm:p-3"
+            />
+            {paymentProof && (
+              <div className="mt-3 p-3 bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl flex items-center gap-3">
+                <span className="text-xl">📎</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-white truncate">{paymentProof.name}</p>
+                  <p className="text-xs text-emerald-400 font-medium">✓ Screenshot selected</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPaymentProof(null)}
+                  className="text-xs text-red-400 hover:text-red-300 font-bold px-3 py-1 bg-red-500/10 rounded-lg border border-red-500/20 transition"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* OFFICIAL DYNAMIC LOCAL UPI PAYMENT QR (MOVED BELOW UTR & SCREENSHOT) */}
         {(() => {
           const upiPayeeId = 'anirudha26hindupur@cnrb';
           const upiPayeeName = 'Dandiya Nights 12th Edition';
@@ -1786,78 +1878,6 @@ export default function RegisterPage({
             </div>
           );
         })()}
-
-        {/* MANDATORY CHECKOUT VERIFICATION FIELDS RIGHT UNDER QR */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-7 md:p-8 mb-8 text-left space-y-5 sm:space-y-6">
-          <div className="border-b border-white/10 pb-3">
-            <h3 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-              <span>📝</span> Payment Confirmation Details
-            </h3>
-            <p className="text-xs text-gray-400 mt-1">
-              Since this is a direct bank transfer, please provide your transaction reference and screenshot for quick admin approval.
-            </p>
-          </div>
-
-          {/* FIELD 1: 12-DIGIT UTR */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-bold text-gray-200 uppercase tracking-wider">
-                12-Digit UTR / UPI Transaction Reference No. <span className="text-rose-400">*</span>
-              </label>
-              <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                Mandatory
-              </span>
-            </div>
-            <input
-              type="text"
-              name="utr"
-              placeholder="e.g. 4289XXXXXXXX (12-digit number)"
-              value={formData.utr}
-              onChange={handleChange}
-              required
-              maxLength={25}
-              className="w-full p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-black/40 border border-white/10 text-white font-mono text-sm tracking-wider focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition placeholder:text-gray-500"
-            />
-            <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1.5">
-              <span>💡</span> You can copy the 12-digit UTR or Transaction ID from your payment success screen in GPay, PhonePe, Paytm, or BHIM.
-            </p>
-          </div>
-
-          {/* FIELD 2: PAYMENT SCREENSHOT */}
-          <div className="pt-2">
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-bold text-gray-200 uppercase tracking-wider">
-                Upload Payment Success Screenshot <span className="text-rose-400">*</span>
-              </label>
-              <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                Mandatory
-              </span>
-            </div>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setPaymentProof(e.target.files?.[0] || null)}
-              required
-              className="w-full text-gray-300 file:mr-3 sm:file:mr-4 file:py-2.5 sm:file:py-3.5 file:px-4 sm:file:px-6 file:rounded-xl file:border-0 file:text-xs sm:file:text-sm file:font-bold file:bg-amber-500 file:text-black hover:file:bg-amber-400 transition cursor-pointer bg-black/40 rounded-xl sm:rounded-2xl border border-white/10 p-2.5 sm:p-3"
-            />
-            {paymentProof && (
-              <div className="mt-3 p-3 bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl flex items-center gap-3">
-                <span className="text-xl">📎</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-white truncate">{paymentProof.name}</p>
-                  <p className="text-xs text-emerald-400 font-medium">✓ Screenshot selected</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setPaymentProof(null)}
-                  className="text-xs text-red-400 hover:text-red-300 font-bold px-3 py-1 bg-red-500/10 rounded-lg border border-red-500/20 transition"
-                >
-                  Remove
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
 
         {/* BUTTON */}
         <button
