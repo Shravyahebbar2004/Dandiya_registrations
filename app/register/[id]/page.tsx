@@ -75,6 +75,7 @@ export default function RegisterPage({
 
   // INSTANT OTP TRIGGER STATES
   const [isOtpSent, setIsOtpSent] = useState(false);
+  const [isOtpVerified, setIsOtpVerified] = useState(false);
   const [sendingOtpQuick, setSendingOtpQuick] = useState(false);
   const [lastSentEmail, setLastSentEmail] = useState('');
 
@@ -107,6 +108,29 @@ export default function RegisterPage({
       console.log('Error triggering OTP:', err);
     } finally {
       setSendingOtpQuick(false);
+    }
+  };
+
+  const handleVerifyOtpInline = async () => {
+    if (!otp || otp.trim().length < 6) {
+      alert('Please enter the 6-digit verification OTP!');
+      return;
+    }
+
+    try {
+      setOtpSending(true);
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/verify-otp`,
+        { email: formData.email.trim(), otp: otp.trim() }
+      );
+
+      if (response.data.success) {
+        setIsOtpVerified(true);
+      }
+    } catch (err: any) {
+      alert(err?.response?.data?.message || 'Invalid or expired OTP. Please check and try again.');
+    } finally {
+      setOtpSending(false);
     }
   };
 
@@ -599,9 +623,13 @@ export default function RegisterPage({
         draftData.append('payment_proof', paymentProof);
       }
 
-      // IF OTP WAS ALREADY DISPATCHED TO THIS EMAIL, OPEN MODAL DIRECTLY; OTHERWISE SEND OTP NOW
-      if (isOtpSent && lastSentEmail === formData.email.trim().toLowerCase()) {
-        setShowOtpModal(true);
+      // IF OTP IS ALREADY VERIFIED INLINE, DIRECTLY REGISTER USER; ELSE PROMPT USER TO VERIFY INLINE
+      if (isOtpVerified) {
+        await handleVerifyAndRegister();
+      } else if (isOtpSent && lastSentEmail === formData.email.trim().toLowerCase()) {
+        alert("Please enter the 6-digit OTP code below your Email ID and click 'Verify OTP' before completing registration!");
+        setSubmitting(false);
+        return;
       } else {
         const response = await axios.post(
           `${process.env.NEXT_PUBLIC_API_URL}/api/send-otp`,
@@ -612,7 +640,7 @@ export default function RegisterPage({
         if (response.data.success) {
           setIsOtpSent(true);
           setLastSentEmail(formData.email.trim().toLowerCase());
-          setShowOtpModal(true);
+          alert(`A 6-digit verification code has been sent to ${formData.email.trim()}! Please enter it below your Email ID and click 'Verify OTP'.`);
         }
       }
     } catch (error: any) {
@@ -1462,37 +1490,92 @@ export default function RegisterPage({
                     handleChange(e);
                     if (isOtpSent && e.target.value.trim().toLowerCase() !== lastSentEmail) {
                       setIsOtpSent(false);
+                      setIsOtpVerified(false);
                     }
                   }}
                   required
-                  className="flex-1 p-4 rounded-2xl bg-black/40 border border-white/10 text-white font-medium focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition"
-                />
-                <button
-                  type="button"
-                  onClick={() => triggerSendOtp(formData.email, true)}
-                  disabled={sendingOtpQuick || !formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())}
-                  className={`px-5 py-4 rounded-2xl font-bold text-sm transition shrink-0 shadow-md ${
-                    isOtpSent && lastSentEmail === formData.email.trim().toLowerCase()
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                      : 'bg-amber-500 hover:bg-amber-600 text-black disabled:opacity-40 disabled:cursor-not-allowed'
+                  disabled={isOtpVerified}
+                  className={`flex-1 p-4 rounded-2xl bg-black/40 border text-white font-medium focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition ${
+                    isOtpVerified ? 'border-emerald-500/50 bg-emerald-950/20' : 'border-white/10'
                   }`}
-                >
-                  {sendingOtpQuick ? (
-                    'Sending...'
-                  ) : isOtpSent && lastSentEmail === formData.email.trim().toLowerCase() ? (
-                    '✓ OTP Sent (Resend)'
-                  ) : (
-                    'Send OTP 📩'
-                  )}
-                </button>
+                />
+                {!isOtpVerified && (
+                  <button
+                    type="button"
+                    onClick={() => triggerSendOtp(formData.email, true)}
+                    disabled={sendingOtpQuick || !formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())}
+                    className={`px-5 py-4 rounded-2xl font-bold text-sm transition shrink-0 shadow-md ${
+                      isOtpSent && lastSentEmail === formData.email.trim().toLowerCase()
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                        : 'bg-amber-500 hover:bg-amber-600 text-black disabled:opacity-40 disabled:cursor-not-allowed'
+                    }`}
+                  >
+                    {sendingOtpQuick ? (
+                      'Sending...'
+                    ) : isOtpSent && lastSentEmail === formData.email.trim().toLowerCase() ? (
+                      '✓ OTP Sent (Resend)'
+                    ) : (
+                      'Send OTP 📩'
+                    )}
+                  </button>
+                )}
+                {isOtpVerified && (
+                  <span className="px-5 py-4 rounded-2xl font-bold text-sm bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 shrink-0">
+                    <span>✓</span> Email Verified
+                  </span>
+                )}
               </div>
               <p className="text-xs text-amber-300/80 mt-1.5 flex items-center gap-1.5">
                 <span>📩</span> Your official QR ticket pass will be delivered directly to this email ID.
               </p>
-              {isOtpSent && lastSentEmail === formData.email.trim().toLowerCase() && (
-                <p className="text-xs text-emerald-400 mt-1.5 font-bold flex items-center gap-1">
-                  <span>✓</span> Verification code sent to {lastSentEmail}. Check your inbox!
-                </p>
+
+              {/* INLINE OTP VERIFICATION INPUT FIELD BELOW EMAIL ID */}
+              {isOtpSent && !isOtpVerified && (
+                <div className="mt-3 p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <span>🔑</span> Enter 6-Digit Email Verification Code <span className="text-rose-400">*</span>
+                    </label>
+                    <span className="text-[11px] text-amber-200/80 font-mono">Sent to {lastSentEmail}</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      placeholder="Enter 6-digit OTP code"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      maxLength={6}
+                      className="flex-1 p-3.5 rounded-xl bg-black/60 border border-amber-500/40 text-white font-mono text-center text-lg font-bold tracking-widest outline-none focus:ring-2 focus:ring-amber-500 placeholder:text-gray-500 placeholder:font-sans placeholder:text-sm placeholder:tracking-normal"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleVerifyOtpInline}
+                      disabled={otpSending || otp.length < 6}
+                      className="bg-emerald-500 hover:bg-emerald-600 text-black font-bold px-6 py-3.5 rounded-xl transition disabled:opacity-50 text-sm shrink-0 shadow-md"
+                    >
+                      {otpSending ? 'Verifying...' : 'Verify OTP ✓'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* VERIFIED SUCCESS BADGE */}
+              {isOtpVerified && (
+                <div className="mt-2.5 p-3 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-between text-xs text-emerald-300 font-bold">
+                  <span className="flex items-center gap-1.5">
+                    <span>✓</span> Email ({lastSentEmail}) Verified & Validated
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsOtpVerified(false);
+                      setIsOtpSent(false);
+                    }}
+                    className="text-[11px] text-amber-300 hover:text-white underline font-normal"
+                  >
+                    Change Email
+                  </button>
+                </div>
               )}
             </div>
 
