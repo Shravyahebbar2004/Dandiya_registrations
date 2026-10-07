@@ -973,13 +973,7 @@ export default function RegisterPage({
                     Early Bird Passes Available
                   </h2>
                   <p className="text-emerald-200/90 text-sm mt-1 max-w-md">
-                    Take advantage of discounted rates with additional volume discounts on 5+ and 10+ ticket purchases. Valid up to {dandiyaConfig.slab1?.threshold || 150} tickets.
-                  </p>
-                </div>
-                <div className="bg-black/50 border border-emerald-500/40 rounded-2xl p-4 text-center min-w-[160px] self-center md:self-auto">
-                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Early Bird Capacity</p>
-                  <p className="text-2xl font-black text-emerald-300 my-1">
-                    {Number(event.total_registrations) || 0} / {dandiyaConfig.slab1?.threshold || 150}
+                    Take advantage of discounted rates with additional volume discounts on 5+ and 10+ ticket purchases.
                   </p>
                 </div>
               </div>
@@ -1035,7 +1029,7 @@ export default function RegisterPage({
                   {/* Tier 1 */}
                   <div className={`p-4 rounded-2xl border-2 transition-all ${currentQty >= 1 && currentQty <= 4 ? 'bg-amber-500/20 border-amber-400 ring-2 ring-amber-400/40' : 'bg-black/30 border-white/10 opacity-70'}`}>
                     <div className="flex justify-between items-start mb-1">
-                      <span className="text-xs font-black uppercase tracking-wider text-gray-300">1 - 4 Tickets</span>
+                      <span className="text-xs font-black uppercase tracking-wider text-gray-300">1+ Tickets</span>
                       {currentQty >= 1 && currentQty <= 4 && (
                         <span className="text-[10px] bg-amber-400 text-black font-black px-2 py-0.5 rounded-full">Active</span>
                       )}
@@ -1047,7 +1041,7 @@ export default function RegisterPage({
                   {/* Tier 2 */}
                   <div className={`p-4 rounded-2xl border-2 transition-all ${currentQty >= 5 && currentQty <= 9 ? 'bg-amber-500/20 border-amber-400 ring-2 ring-amber-400/40' : 'bg-black/30 border-white/10 opacity-70'}`}>
                     <div className="flex justify-between items-start mb-1">
-                      <span className="text-xs font-black uppercase tracking-wider text-emerald-300">5 - 9 Tickets</span>
+                      <span className="text-xs font-black uppercase tracking-wider text-emerald-300">5+ Tickets</span>
                       {currentQty >= 5 && currentQty <= 9 ? (
                         <span className="text-[10px] bg-amber-400 text-black font-black px-2 py-0.5 rounded-full">Active</span>
                       ) : (
