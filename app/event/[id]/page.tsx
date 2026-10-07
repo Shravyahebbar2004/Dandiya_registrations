@@ -256,7 +256,7 @@ export default function EventPage({
               <CalendarDays size={22} className="text-rose-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <span className="text-[11px] font-bold text-rose-400 uppercase tracking-wider block mb-1">Date & Time</span>
+              <span className="text-[11px] font-bold text-rose-400 uppercase tracking-wider block mb-1">Event Date</span>
               <p className="text-base sm:text-lg font-bold text-white">
                 {new Date(event.event_date).toLocaleDateString('en-IN', {
                   timeZone: 'Asia/Kolkata',
@@ -264,16 +264,6 @@ export default function EventPage({
                   month: 'short',
                   year: 'numeric'
                 })}
-              </p>
-              <p className="text-xs text-gray-400 mt-1 font-medium">
-                Starts at{' '}
-                {new Date(event.event_date).toLocaleTimeString('en-US', {
-                  timeZone: 'Asia/Kolkata',
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  hour12: true
-                })}{' '}
-                IST
               </p>
             </div>
           </div>
