@@ -46,6 +46,35 @@ export default function EditEventPage() {
     setIsAuthorized(true);
   }, [router]);
 
+  // Auto logout on 5 minutes inactivity
+  useEffect(() => {
+    const INACTIVITY_LIMIT_MS = 5 * 60 * 1000;
+    let lastActivity = Date.now();
+
+    const resetActivity = () => {
+      lastActivity = Date.now();
+    };
+
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+    activityEvents.forEach((evt) => window.addEventListener(evt, resetActivity, { passive: true }));
+
+    const idleTimer = setInterval(() => {
+      if (Date.now() - lastActivity >= INACTIVITY_LIMIT_MS) {
+        localStorage.removeItem('admin_token');
+        localStorage.removeItem('scanner_token');
+        sessionStorage.removeItem('admin_token');
+        sessionStorage.removeItem('scanner_token');
+        alert('Session expired due to inactivity. You have been logged out.');
+        if (typeof window !== 'undefined') window.location.href = '/admin-login';
+      }
+    }, 5000);
+
+    return () => {
+      activityEvents.forEach((evt) => window.removeEventListener(evt, resetActivity));
+      clearInterval(idleTimer);
+    };
+  }, []);
+
   const [formData, setFormData] = useState({
 
     title: '',

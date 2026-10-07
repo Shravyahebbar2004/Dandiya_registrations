@@ -584,6 +584,41 @@ export default function AdminPage({
   }, [router, id]);
 
   // ====================================
+  // AUTO LOGOUT ON INACTIVITY (5 MINS)
+  // ====================================
+
+  useEffect(() => {
+    const INACTIVITY_LIMIT_MS = 5 * 60 * 1000; // 5 minutes idle threshold
+    let lastActivity = Date.now();
+
+    const resetActivity = () => {
+      lastActivity = Date.now();
+    };
+
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+    activityEvents.forEach((evt) => window.addEventListener(evt, resetActivity, { passive: true }));
+
+    const idleTimer = setInterval(() => {
+      if (Date.now() - lastActivity >= INACTIVITY_LIMIT_MS) {
+        localStorage.removeItem('admin_token');
+        localStorage.removeItem('scanner_token');
+        sessionStorage.removeItem('admin_token');
+        sessionStorage.removeItem('scanner_token');
+        setIsAuthorized(false);
+        alert('Session expired: You have been automatically logged out due to 5 minutes of inactivity for security.');
+        if (typeof window !== 'undefined') {
+          window.location.href = '/admin-login';
+        }
+      }
+    }, 5000);
+
+    return () => {
+      activityEvents.forEach((evt) => window.removeEventListener(evt, resetActivity));
+      clearInterval(idleTimer);
+    };
+  }, []);
+
+  // ====================================
   // ANALYTICS
   // ====================================
 
@@ -803,6 +838,10 @@ export default function AdminPage({
             <Edit size={16} />
             <span>Edit Event</span>
           </button>
+
+          <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold">
+            <span>🔒</span> Auto-Logout: 5m Idle
+          </span>
 
           <button
             onClick={() => {
