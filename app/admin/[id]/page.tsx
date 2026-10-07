@@ -26,7 +26,10 @@ import {
   Filter,
   CheckCircle2,
   AlertCircle,
-  Clock
+  Clock,
+  XCircle,
+  RotateCcw,
+  Ban
 } from 'lucide-react';
 
 interface User {
@@ -346,6 +349,7 @@ export default function AdminPage({
     | 'approved'
     | 'pending'
     | 'draft'
+    | 'rejected'
     | 'emails';
 
   const [statusFilter, setStatusFilter] = useState<StatusFilterType>('all');
@@ -353,6 +357,8 @@ export default function AdminPage({
   const [mounted, setMounted] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [approvingId, setApprovingId] = useState<number | null>(null);
+  const [rejectingId, setRejectingId] = useState<number | null>(null);
+  const [recoveringId, setRecoveringId] = useState<number | null>(null);
 
   const [analytics, setAnalytics] =
     useState<Analytics | null>(null);
@@ -476,6 +482,78 @@ export default function AdminPage({
   };
 
   // ====================================
+  // REJECT REGISTRATION
+  // ====================================
+
+  const rejectRegistration = async (id: number) => {
+    try {
+      const adminToken = sessionStorage.getItem('admin_token') || localStorage.getItem('admin_token');
+      setRejectingId(id);
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/reject-registration/${id}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${adminToken}`
+          }
+        }
+      );
+
+      alert('Registration Moved to Rejected Section');
+      fetchUsers();
+      fetchAnalytics();
+    } catch (error: any) {
+      console.log(error);
+      if (error.response?.status === 401) {
+        localStorage.removeItem('admin_token');
+        sessionStorage.removeItem('admin_token');
+        setIsAuthorized(false);
+        if (typeof window !== 'undefined') window.location.href = '/admin-login';
+      } else {
+        alert('Reject Failed');
+      }
+    } finally {
+      setRejectingId(null);
+    }
+  };
+
+  // ====================================
+  // RECOVER REGISTRATION
+  // ====================================
+
+  const recoverRegistration = async (id: number) => {
+    try {
+      const adminToken = sessionStorage.getItem('admin_token') || localStorage.getItem('admin_token');
+      setRecoveringId(id);
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/recover-registration/${id}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${adminToken}`
+          }
+        }
+      );
+
+      alert('Registration Recovered to Incomplete Drafts');
+      fetchUsers();
+      fetchAnalytics();
+    } catch (error: any) {
+      console.log(error);
+      if (error.response?.status === 401) {
+        localStorage.removeItem('admin_token');
+        sessionStorage.removeItem('admin_token');
+        setIsAuthorized(false);
+        if (typeof window !== 'undefined') window.location.href = '/admin-login';
+      } else {
+        alert('Recover Failed');
+      }
+    } finally {
+      setRecoveringId(null);
+    }
+  };
+
+  // ====================================
   // AUTH CHECK + LIVE REFRESH
   // ====================================
 
@@ -507,7 +585,7 @@ export default function AdminPage({
   // ANALYTICS
   // ====================================
 
-  const totalUsers = users.filter((user) => user.payment_status !== 'draft').length;
+  const totalUsers = users.filter((user) => user.payment_status !== 'draft' && user.payment_status !== 'rejected').length;
 
   const approvedUsers = users.filter(
     (user) => user.payment_status === 'approved'
@@ -519,6 +597,10 @@ export default function AdminPage({
 
   const draftUsers = users.filter(
     (user) => user.payment_status === 'draft'
+  ).length;
+
+  const rejectedUsers = users.filter(
+    (user) => user.payment_status === 'rejected'
   ).length;
 
   const count5k = users.filter(
@@ -605,9 +687,17 @@ export default function AdminPage({
         if (!matchesSearch) return false;
 
         // Status filter dropdown
-        if (statusFilter === 'approved' && user.payment_status !== 'approved') return false;
-        if (statusFilter === 'pending' && user.payment_status !== 'pending') return false;
-        if (statusFilter === 'draft' && user.payment_status !== 'draft') return false;
+        if (statusFilter === 'all') {
+          if (user.payment_status === 'rejected') return false;
+        } else if (statusFilter === 'approved') {
+          if (user.payment_status !== 'approved') return false;
+        } else if (statusFilter === 'pending') {
+          if (user.payment_status !== 'pending') return false;
+        } else if (statusFilter === 'draft') {
+          if (user.payment_status !== 'draft') return false;
+        } else if (statusFilter === 'rejected') {
+          if (user.payment_status !== 'rejected') return false;
+        }
 
         // Slab filter dropdown
         const idx = sortedAscUsers.findIndex((u) => u.registration_id === user.registration_id);
@@ -799,10 +889,11 @@ export default function AdminPage({
                 onChange={(e) => setStatusFilter(e.target.value as StatusFilterType)}
                 className="w-full p-2.5 rounded-xl bg-zinc-950/80 border border-zinc-800 text-amber-300 font-bold text-xs sm:text-sm focus:outline-none focus:border-amber-400 appearance-none cursor-pointer pr-8"
               >
-                <option value="all">📋 All Statuses ({users.length})</option>
+                <option value="all">📋 All Active Registrations ({totalUsers})</option>
                 <option value="approved">✓ Approved / Accepted ({approvedUsers})</option>
                 <option value="pending">⏳ Pending Approval ({pendingUsers})</option>
                 <option value="draft">⚠️ Incomplete / Drafts ({draftUsers})</option>
+                <option value="rejected">🚫 Rejected Section ({rejectedUsers})</option>
                 <option value="emails">📧 Registered Email Directory ({uniqueEmailCount})</option>
               </select>
               <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-400 pointer-events-none" size={16} />
@@ -1021,6 +1112,11 @@ export default function AdminPage({
                             <AlertCircle size={12} />
                             Incomplete
                           </span>
+                        ) : user.payment_status === 'rejected' ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30">
+                            <Ban size={12} />
+                            Rejected
+                          </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
                             <Clock size={12} />
@@ -1038,7 +1134,34 @@ export default function AdminPage({
 
                       {/* ACTION */}
                       <td className="p-4 text-center whitespace-nowrap">
-                        {user.payment_status !== 'approved' && (
+                        {user.payment_status === 'draft' ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => approvePayment(user.registration_id)}
+                              disabled={approvingId === user.registration_id}
+                              className={`bg-emerald-500 hover:bg-emerald-400 text-black px-3 py-1.5 rounded-lg font-bold text-xs transition shadow ${approvingId === user.registration_id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              {approvingId === user.registration_id ? 'Approving...' : 'Approve'}
+                            </button>
+                            <button
+                              onClick={() => rejectRegistration(user.registration_id)}
+                              disabled={rejectingId === user.registration_id}
+                              className={`bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 ${rejectingId === user.registration_id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              <XCircle size={13} />
+                              {rejectingId === user.registration_id ? 'Rejecting...' : 'Reject'}
+                            </button>
+                          </div>
+                        ) : user.payment_status === 'rejected' ? (
+                          <button
+                            onClick={() => recoverRegistration(user.registration_id)}
+                            disabled={recoveringId === user.registration_id}
+                            className={`bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 px-3.5 py-1.5 rounded-lg font-bold text-xs transition flex items-center justify-center gap-1.5 mx-auto ${recoveringId === user.registration_id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            <RotateCcw size={13} />
+                            {recoveringId === user.registration_id ? 'Recovering...' : 'Recover'}
+                          </button>
+                        ) : user.payment_status !== 'approved' ? (
                           <button
                             onClick={() => approvePayment(user.registration_id)}
                             disabled={approvingId === user.registration_id}
@@ -1046,7 +1169,7 @@ export default function AdminPage({
                           >
                             {approvingId === user.registration_id ? 'Approving...' : 'Approve'}
                           </button>
-                        )}
+                        ) : null}
                       </td>
                     </tr>
                   ))
