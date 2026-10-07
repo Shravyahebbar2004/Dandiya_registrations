@@ -267,7 +267,7 @@ export default function EventPage({
               </p>
               <p className="text-xs text-gray-400 mt-1 font-medium">
                 Starts at{' '}
-                {new Date(event.event_date).toLocaleTimeString('en-IN', {
+                {new Date(event.event_date).toLocaleTimeString('en-US', {
                   timeZone: 'Asia/Kolkata',
                   hour: 'numeric',
                   minute: '2-digit',
