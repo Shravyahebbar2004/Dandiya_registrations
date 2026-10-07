@@ -224,7 +224,10 @@ export default function RegisterPage({
     const dandiyaCfg = getDandiyaConfig(event);
 
     if (dandiyaCfg) {
-      const qty = Math.max(1, quantities.dandiya || 1);
+      let qty = Math.max(1, quantities.dandiya || 1);
+      if (activeSlabKey === 'flash_sale' && qty > 4) {
+        qty = 4;
+      }
       let unitPrice = 0;
 
       if (appliedCoupon && Number(appliedCoupon.price) >= 0) {
@@ -1096,13 +1099,28 @@ export default function RegisterPage({
               </div>
               <button
                 type="button"
-                onClick={() => setQuantities({ ...quantities, dandiya: Math.min(50, (quantities.dandiya || 1) + 1) })}
+                onClick={() => {
+                  const maxLimit = activeSlabKey === 'flash_sale' ? 4 : 50;
+                  const current = quantities.dandiya || 1;
+                  if (current >= maxLimit) {
+                    if (activeSlabKey === 'flash_sale') {
+                      alert("Flash Sale is capped at a maximum of 4 tickets per user!");
+                    }
+                    return;
+                  }
+                  setQuantities({ ...quantities, dandiya: current + 1 });
+                }}
                 className="w-14 h-14 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-3xl font-black text-white transition border border-white/10 shadow-lg"
               >
                 +
               </button>
             </div>
 
+            {activeSlabKey === 'flash_sale' && (
+              <p className="text-xs font-bold text-amber-300 bg-amber-500/10 border border-amber-500/30 py-2 px-4 rounded-xl inline-block">
+                ⚡ Flash Sale Limit: Maximum 4 tickets per user
+              </p>
+            )}
           </div>
 
           {/* INCLUSIONS NOTE */}
@@ -1363,7 +1381,17 @@ export default function RegisterPage({
                   </span>
                   <button
                     type="button"
-                    onClick={() => setQuantities({ ...quantities, dandiya: Math.min(50, (quantities.dandiya || 1) + 1) })}
+                    onClick={() => {
+                      const maxLimit = activeSlabKey === 'flash_sale' ? 4 : 50;
+                      const current = quantities.dandiya || 1;
+                      if (current >= maxLimit) {
+                        if (activeSlabKey === 'flash_sale') {
+                          alert("Flash Sale is capped at a maximum of 4 tickets per user!");
+                        }
+                        return;
+                      }
+                      setQuantities({ ...quantities, dandiya: current + 1 });
+                    }}
                     className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center font-bold text-white transition text-base"
                   >
                     +
