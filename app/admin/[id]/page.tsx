@@ -354,7 +354,9 @@ export default function AdminPage({
       const adminToken = sessionStorage.getItem('admin_token') || localStorage.getItem('admin_token');
       if (!adminToken) {
         setIsAuthorized(false);
-        if (typeof window !== 'undefined') window.location.href = '/admin-login';
+        if (typeof window !== 'undefined') {
+          window.location.href = '/admin-login';
+        }
         return;
       }
 
@@ -367,19 +369,30 @@ export default function AdminPage({
         }
       );
 
-      const rawRegistrations: User[] = response.data.registrations || [];
-      const sortedRegistrations = [...rawRegistrations].sort(
-        (a, b) => Number(a.registration_id) - Number(b.registration_id)
-      );
+      if (response.data && response.data.success) {
+        const rawRegistrations: User[] = response.data.registrations || [];
+        const sortedRegistrations = [...rawRegistrations].sort(
+          (a, b) => Number(a.registration_id) - Number(b.registration_id)
+        );
 
-      setUsers(sortedRegistrations);
-      setIsAuthorized(true);
+        setUsers(sortedRegistrations);
+        setIsAuthorized(true);
+      } else {
+        localStorage.removeItem('admin_token');
+        sessionStorage.removeItem('admin_token');
+        setIsAuthorized(false);
+        if (typeof window !== 'undefined') {
+          window.location.href = '/admin-login';
+        }
+      }
     } catch (error: any) {
       console.log('Admin Auth Error:', error);
       localStorage.removeItem('admin_token');
       sessionStorage.removeItem('admin_token');
       setIsAuthorized(false);
-      if (typeof window !== 'undefined') window.location.href = '/admin-login';
+      if (typeof window !== 'undefined') {
+        window.location.href = '/admin-login';
+      }
     }
   };
 
