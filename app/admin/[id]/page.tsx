@@ -14,6 +14,21 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
+import {
+  Sparkles,
+  UserPlus,
+  FileSpreadsheet,
+  Mail,
+  Download,
+  Edit,
+  LogOut,
+  Search,
+  Filter,
+  CheckCircle2,
+  AlertCircle,
+  Clock
+} from 'lucide-react';
+
 interface User {
   registration_id: number;
   full_name: string;
@@ -331,13 +346,10 @@ export default function AdminPage({
     | 'approved'
     | 'pending'
     | 'draft'
-    | 'flash_sale'
-    | 'slab1'
-    | 'slab2'
-    | 'slab3'
     | 'emails';
 
   const [statusFilter, setStatusFilter] = useState<StatusFilterType>('all');
+  const [slabFilter, setSlabFilter] = useState<string>('all');
   const [mounted, setMounted] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [approvingId, setApprovingId] = useState<number | null>(null);
@@ -578,45 +590,47 @@ export default function AdminPage({
   // SEARCH & CATEGORY FILTER WITH BIB SORT
   // ====================================
 
-  const filteredUsers = users
-    .filter((user) => {
-      const matchesSearch =
-        user.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-        user.email?.toLowerCase().includes(search.toLowerCase()) ||
-        user.phone_number?.includes(search) ||
-        (user.bib_number && String(user.bib_number).includes(search));
+  const filteredUsers = useMemo(() => {
+    return users
+      .filter((user) => {
+        const query = search.toLowerCase().trim();
+        const matchesSearch =
+          !query ||
+          user.full_name?.toLowerCase().includes(query) ||
+          user.email?.toLowerCase().includes(query) ||
+          user.phone_number?.includes(query) ||
+          (user.utr && user.utr.toLowerCase().includes(query)) ||
+          (user.bib_number && String(user.bib_number).includes(query));
 
-      if (!matchesSearch) return false;
+        if (!matchesSearch) return false;
 
-      if (statusFilter === 'approved') return user.payment_status === 'approved';
-      if (statusFilter === 'pending') return user.payment_status === 'pending';
-      if (statusFilter === 'draft') return user.payment_status === 'draft';
-      
-      // Dandiya Timeline Slabs
-      const idx = sortedAscUsers.findIndex((u) => u.registration_id === user.registration_id);
-      if (statusFilter === 'flash_sale') {
-        return idx < 50 || user.coupon_code?.toLowerCase().includes('flash');
-      }
-      if (statusFilter === 'slab1') {
-        return idx >= 50 && idx < 150;
-      }
-      if (statusFilter === 'slab2') {
-        return idx >= 150 && idx < 300;
-      }
-      if (statusFilter === 'slab3') {
-        return idx >= 300;
-      }
-      return true;
-    })
-    .sort((a, b) => {
-      const bibA = a.bib_number ? Number(a.bib_number) : null;
-      const bibB = b.bib_number ? Number(b.bib_number) : null;
+        // Status filter dropdown
+        if (statusFilter === 'approved' && user.payment_status !== 'approved') return false;
+        if (statusFilter === 'pending' && user.payment_status !== 'pending') return false;
+        if (statusFilter === 'draft' && user.payment_status !== 'draft') return false;
 
-      if (bibA !== null && bibB !== null && bibA !== bibB) {
-        return bibB - bibA;
-      }
-      return b.registration_id - a.registration_id;
-    });
+        // Slab filter dropdown
+        const idx = sortedAscUsers.findIndex((u) => u.registration_id === user.registration_id);
+        if (slabFilter === 'flash_sale') {
+          const matchesFlash = idx < 50 || user.coupon_code?.toLowerCase().includes('flash');
+          if (!matchesFlash) return false;
+        }
+        if (slabFilter === 'slab1' && !(idx >= 50 && idx < 150)) return false;
+        if (slabFilter === 'slab2' && !(idx >= 150 && idx < 300)) return false;
+        if (slabFilter === 'slab3' && !(idx >= 300)) return false;
+
+        return true;
+      })
+      .sort((a, b) => {
+        const bibA = a.bib_number ? Number(a.bib_number) : null;
+        const bibB = b.bib_number ? Number(b.bib_number) : null;
+
+        if (bibA !== null && bibB !== null && bibA !== bibB) {
+          return bibB - bibA;
+        }
+        return b.registration_id - a.registration_id;
+      });
+  }, [users, search, statusFilter, slabFilter, sortedAscUsers]);
 
   if (!mounted || !isAuthorized) {
     return (
@@ -636,99 +650,63 @@ export default function AdminPage({
   // ====================================
 
   return (
-   <div
-  className="
-    min-h-screen
-    bg-gradient-to-br
-    from-black
-    via-zinc-950
-    to-violet-950
-    text-white
-    p-10
-  "
->
-      {/* HEADER */}
+    <div className="min-h-screen bg-[#09090b] text-white p-4 sm:p-8 font-sans selection:bg-amber-500 selection:text-black">
+      {/* TOP HEADER TOOLBAR */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 bg-zinc-900/90 border border-zinc-800 p-6 rounded-2xl shadow-xl backdrop-blur-xl">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-500 to-violet-600 flex items-center justify-center text-black font-black shadow-lg shadow-amber-500/20">
+            <Sparkles size={22} className="text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-black bg-gradient-to-r from-amber-200 via-white to-violet-300 bg-clip-text text-transparent tracking-tight">
+              EventFlow Admin Console
+            </h1>
+            <p className="text-gray-400 text-xs sm:text-sm font-medium">
+              Manage event registrations, approve payments, and analyze attendance
+            </p>
+          </div>
+        </div>
 
-      <div
-        className="
-          flex
-          flex-col
-          md:flex-row
-          justify-between
-          items-center
-          gap-5
-          mb-10
-        "
-      >
-        <h1
-  className="
-    text-6xl
-    font-black
-    bg-gradient-to-r
-    from-yellow-300
-    via-white
-    to-violet-300
-    bg-clip-text
-    text-transparent
-  "
->
-  EventFlow Admin Console
-</h1>
-
-        <div className="flex flex-wrap gap-4">
-          {/* REGISTER NEW PARTICIPANT (ADMIN MODE) */}
+        <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
           <button
             onClick={() => window.open(`/register/${id}?admin=true`, '_blank')}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-bold transition flex items-center gap-2 shadow-lg"
+            className="flex-1 sm:flex-initial bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 shadow-lg"
           >
-            ➕ Add New Registration (Admin Mode)
+            <UserPlus size={16} />
+            <span>Add Registration</span>
           </button>
 
-          {/* EXPORT MULTI-SHEET EXCEL */}
           <button
             onClick={exportExcel}
-            className="bg-emerald-500 hover:bg-emerald-600 px-6 py-3 rounded-xl font-bold transition flex items-center gap-2 shadow-lg"
+            className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2 shadow-lg"
           >
-            📊 Export Multi-Sheet Excel (.xls)
+            <FileSpreadsheet size={16} />
+            <span>Excel (.xls)</span>
           </button>
 
-          {/* EXPORT EMAIL DIRECTORY CSV */}
           <button
             onClick={exportEmailCSV}
-            className="bg-yellow-400 hover:bg-yellow-500 text-black px-6 py-3 rounded-xl font-bold transition flex items-center gap-2 shadow-lg"
+            className="bg-amber-500 hover:bg-amber-400 text-black px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2 shadow-lg"
           >
-            📧 Export Email Directory CSV (.csv)
+            <Mail size={16} />
+            <span>Email Directory</span>
           </button>
 
-          {/* EXPORT CSV */}
           <button
             onClick={exportCSV}
-            className="bg-zinc-800 hover:bg-zinc-700 text-gray-200 px-6 py-3 rounded-xl font-bold transition flex items-center gap-2 shadow-lg border border-white/10"
+            className="bg-zinc-800 hover:bg-zinc-700 text-gray-200 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2 border border-zinc-700"
           >
-            📄 Export Current View CSV
+            <Download size={16} />
+            <span>Export View</span>
           </button>
-
-          {/* EDIT EVENT */}
 
           <button
             onClick={() => router.push(`/edit-event/${id}`)}
-            className="
-              bg-blue-500
-              hover:bg-blue-600
-              px-6
-              py-4
-              rounded-2xl
-              font-bold
-              text-lg
-              transition
-              w-full
-              md:w-auto
-            "
+            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2"
           >
-            Edit Event Details
+            <Edit size={16} />
+            <span>Edit Event</span>
           </button>
-
-          {/* LOGOUT */}
 
           <button
             onClick={() => {
@@ -739,421 +717,155 @@ export default function AdminPage({
               setIsAuthorized(false);
               if (typeof window !== 'undefined') window.location.href = '/admin-login';
             }}
-            className="
-              bg-red-500
-              hover:bg-red-600
-              px-6
-              py-4
-              rounded-2xl
-              font-bold
-              text-lg
-              transition
-              w-full
-              md:w-auto
-            "
+            className="bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2"
           >
-            Logout
+            <LogOut size={16} />
+            <span>Logout</span>
           </button>
         </div>
       </div>
 
-      {/* SEARCH */}
-
-      <input
-        type="text"
-        placeholder="Search attendee by name or email..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="
-          w-full
-          mb-10
-          p-4
-          rounded-2xl
-          bg-white/5
-          border-white/10
-          backdrop-blur-xl
-          hover:scale-105
-          transition          
-          border
-          text-white
-          placeholder-gray-400
-          focus:outline-none
-          focus:ring-2
-          focus:ring-yellow-400
-        "
-      />
-
-      {/* ANALYTICS CARDS */}
-
-      <div
-        className="
-          grid
-          grid-cols-1
-          md:grid-cols-3
-          gap-6
-          mb-10
-        "
-      >
-        {/* TOTAL */}
-
-        <div
-          className="
-            bg-white/5
-border-white/10
-backdrop-blur-xl
-hover:scale-105
-transition            
-border
-            bg-white/5
-border-white/10
-backdrop-blur-xl
-hover:scale-105
-transition            rounded-3xl
-            p-8
-            text-center
-            backdrop-blur-xl
-          "
-        >
-          <h2
-            className="
-              text-2xl
-              text-gray-300
-              mb-3
-            "
-          >
-            Total Registrations
-          </h2>
-
-          <p
-            className="
-              text-5xl
-              font-black
-              text-yellow-300
-            "
-          >
-            {totalUsers}
-          </p>
-        </div>
-
-        {/* APPROVED */}
-
-        <div
-          className="
-            bg-white/5
-border-white/10
-backdrop-blur-xl
-hover:scale-105
-transition            border
-            border-white/20
-            rounded-3xl
-            p-8
-            text-center
-            backdrop-blur-xl
-          "
-        >
-          <h2
-            className="
-              text-2xl
-              text-gray-300
-              mb-3
-            "
-          >
-            Approved Tickets
-          </h2>
-
-          <p
-            className="
-              text-5xl
-              font-black
-              text-green-400
-            "
-          >
-            {approvedUsers}
-          </p>
-        </div>
-
-        {/* PENDING */}
-
-        <div
-          className="
-            bg-white/5
-border-white/10
-backdrop-blur-xl
-hover:scale-105
-transition            border
-            border-white/20
-            rounded-3xl
-            p-8
-            text-center
-            backdrop-blur-xl
-          "
-        >
-          <h2
-            className="
-              text-2xl
-              text-gray-300
-              mb-3
-            "
-          >
-            Pending Approvals
-          </h2>
-
-          <p
-            className="
-              text-5xl
-              font-black
-              text-red-400
-            "
-          >
-            {pendingUsers}
-          </p>
-        </div>
-      </div>
-
-      {/* LIVE ANALYTICS GRAPH */}
-
-      {analytics && (
-        <div
-          className="
-            bg-white/5
-border-white/10
-backdrop-blur-xl
-hover:scale-105
-transition            border
-            border-white/10
-            rounded-3xl
-            p-10
-            mb-10
-            backdrop-blur-xl
-          "
-        >
-          <h2
-            className="
-              text-4xl
-              font-black
-              text-yellow-300
-              mb-10
-            "
-          >
-            Live Entry Analytics
-          </h2>
-
-          <ResponsiveContainer
-            width="100%"
-            height={400}
-          >
-            <LineChart
-              data={analytics?.hourlyEntries || []}
-            >
-              <XAxis dataKey="hour" />
-
-              <YAxis />
-
-              <Tooltip />
-
-              <Line
-                type="monotone"
-                dataKey="entries"
-                stroke="#facc15"
-                strokeWidth={4}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
-      {/* RECENT ENTRIES */}
-
-      {analytics && (
-        <div
-          className="
-            bg-white/5
-border-white/10
-backdrop-blur-xl
-hover:scale-105
-transition            border
-            border-white/10
-            rounded-3xl
-            p-10
-            mb-10
-            backdrop-blur-xl
-          "
-        >
-          <h2
-            className="
-              text-4xl
-              font-black
-              text-yellow-300
-              mb-8
-            "
-          >
-            Recent Entries
-          </h2>
-
-          <div className="space-y-4">
-            {analytics?.recentEntries?.map(
-              (entry, index) => (
-                <div
-                  key={index}
-                  className="
-                    bg-black/40
-                    border
-                    border-white/10
-                    rounded-2xl
-                    p-5
-                    flex
-                    justify-between
-                    items-center
-                  "
-                >
-                  <div>
-                    <p
-                      className="
-                        text-xl
-                        font-bold
-                      "
-                    >
-                      {entry.full_name}
-                    </p>
-
-                    <p
-                      className="
-                        text-gray-400
-                      "
-                    >
-                      Scanned by {entry.username}
-                    </p>
-                  </div>
-
-                  <p
-                    className="
-                      text-yellow-300
-                    "
-                  >
-                    {new Date(
-                      entry.entry_time
-                    ).toLocaleTimeString()}
-                  </p>
-                </div>
-              )
-            )}
+      {/* STATS CARDS */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-lg flex items-center justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-wider font-bold text-gray-400">Total Registrations</p>
+            <p className="text-2xl sm:text-3xl font-black text-amber-300 mt-1">{totalUsers}</p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+            📊
           </div>
         </div>
-      )}
 
-      {/* STATUS TABS FILTER */}
-      <div className="space-y-3 mb-8">
-        {/* ROW 1: STATUS TABS */}
-        <div className="flex flex-wrap gap-2.5 items-center">
-          <span className="text-xs font-bold uppercase tracking-wider text-gray-400 mr-1">Status:</span>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('all')}
-            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'all' ? 'bg-yellow-400 text-black shadow-lg' : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'}`}
-          >
-            All ({users.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('approved')}
-            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'approved' ? 'bg-green-500 text-black shadow-lg' : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'}`}
-          >
-            Accepted / Approved ({approvedUsers})
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('pending')}
-            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'pending' ? 'bg-yellow-400 text-black shadow-lg' : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'}`}
-          >
-            Pending Approval ({pendingUsers})
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('draft')}
-            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'draft' ? 'bg-orange-500 text-black shadow-lg' : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'}`}
-          >
-            ⚠️ Incomplete / Drafts ({draftUsers})
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('emails')}
-            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'emails' ? 'bg-amber-400 text-black shadow-lg' : 'bg-white/5 border border-amber-400/40 text-amber-300 hover:bg-white/10'}`}
-          >
-            📧 Registered Email Directory ({uniqueEmailCount})
-          </button>
+        <div className="bg-zinc-900/80 border border-emerald-500/20 rounded-2xl p-4 sm:p-5 shadow-lg flex items-center justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-wider font-bold text-emerald-400">Approved Passes</p>
+            <p className="text-2xl sm:text-3xl font-black text-emerald-400 mt-1">{approvedUsers}</p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+            <CheckCircle2 size={20} />
+          </div>
         </div>
 
-        {/* ROW 2: TIMELINE / PRICING SLABS TABS */}
-        <div className="flex flex-wrap gap-2.5 items-center">
-          <span className="text-xs font-bold uppercase tracking-wider text-amber-400 mr-1">Pricing Slabs:</span>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('flash_sale')}
-            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'flash_sale' ? 'bg-amber-500 text-black shadow-lg' : 'bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20'}`}
-          >
-            ⚡ Flash Sale ({countFlashSale})
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('slab1')}
-            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'slab1' ? 'bg-emerald-500 text-black shadow-lg' : 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20'}`}
-          >
-            🐦 Early Bird / Slab 1 ({countSlab1})
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('slab2')}
-            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'slab2' ? 'bg-blue-500 text-white shadow-lg' : 'bg-blue-500/10 border border-blue-500/30 text-blue-300 hover:bg-blue-500/20'}`}
-          >
-            🎫 Normal / Slab 2 ({countSlab2})
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('slab3')}
-            className={`px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${statusFilter === 'slab3' ? 'bg-purple-500 text-white shadow-lg' : 'bg-purple-500/10 border border-purple-500/30 text-purple-300 hover:bg-purple-500/20'}`}
-          >
-            🔥 Slab 3 ({countSlab3})
-          </button>
+        <div className="bg-zinc-900/80 border border-amber-500/20 rounded-2xl p-4 sm:p-5 shadow-lg flex items-center justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-wider font-bold text-amber-400">Pending Approvals</p>
+            <p className="text-2xl sm:text-3xl font-black text-amber-400 mt-1">{pendingUsers}</p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+            <Clock size={20} />
+          </div>
+        </div>
+
+        <div className="bg-zinc-900/80 border border-orange-500/20 rounded-2xl p-4 sm:p-5 shadow-lg flex items-center justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-wider font-bold text-orange-400">Incomplete Drafts</p>
+            <p className="text-2xl sm:text-3xl font-black text-orange-400 mt-1">{draftUsers}</p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400">
+            <AlertCircle size={20} />
+          </div>
         </div>
       </div>
 
-      {/* CONDITIONAL TABLE VIEW */}
+      {/* SEARCH AND DROPDOWN FILTERS TOOLBAR */}
+      <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-4 mb-6 shadow-xl backdrop-blur-xl">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+          {/* SEARCH BAR */}
+          <div className="md:col-span-6 relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text"
+              placeholder="Search attendee by name, email, phone, UTR..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-16 py-2.5 rounded-xl bg-zinc-950/80 border border-zinc-800 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-amber-400 transition"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-white bg-zinc-800 px-2 py-0.5 rounded-md"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          {/* DROPDOWN 1: REGISTRATION STATUS */}
+          <div className="md:col-span-3">
+            <div className="relative">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as StatusFilterType)}
+                className="w-full p-2.5 rounded-xl bg-zinc-950/80 border border-zinc-800 text-amber-300 font-bold text-xs sm:text-sm focus:outline-none focus:border-amber-400 appearance-none cursor-pointer pr-8"
+              >
+                <option value="all">📋 All Statuses ({users.length})</option>
+                <option value="approved">✓ Approved / Accepted ({approvedUsers})</option>
+                <option value="pending">⏳ Pending Approval ({pendingUsers})</option>
+                <option value="draft">⚠️ Incomplete / Drafts ({draftUsers})</option>
+                <option value="emails">📧 Registered Email Directory ({uniqueEmailCount})</option>
+              </select>
+              <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-400 pointer-events-none" size={16} />
+            </div>
+          </div>
+
+          {/* DROPDOWN 2: DANDIYA PRICING SLABS */}
+          <div className="md:col-span-3">
+            <div className="relative">
+              <select
+                value={slabFilter}
+                onChange={(e) => setSlabFilter(e.target.value)}
+                className="w-full p-2.5 rounded-xl bg-zinc-950/80 border border-zinc-800 text-cyan-300 font-bold text-xs sm:text-sm focus:outline-none focus:border-cyan-400 appearance-none cursor-pointer pr-8"
+              >
+                <option value="all">🎟️ All Pricing Slabs</option>
+                <option value="flash_sale">⚡ Flash Sale ({countFlashSale})</option>
+                <option value="slab1">🐦 Early Bird / Slab 1 ({countSlab1})</option>
+                <option value="slab2">🎫 Normal / Slab 2 ({countSlab2})</option>
+                <option value="slab3">🔥 Slab 3 ({countSlab3})</option>
+              </select>
+              <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-cyan-400 pointer-events-none" size={16} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* TABLE VIEW */}
       {statusFilter === 'emails' ? (
-        <div className="overflow-x-auto bg-white/5 border border-white/20 rounded-3xl backdrop-blur-xl p-6 mb-10">
+        <div className="overflow-x-auto bg-zinc-900/90 border border-zinc-800 rounded-2xl shadow-2xl p-6 mb-10">
           <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
             <div>
-              <h2 className="text-2xl font-bold text-yellow-300">Registered Email IDs Directory</h2>
-              <p className="text-gray-400 text-sm mt-1">
-                Real-time auto-updating list of all unique registered email addresses and their participants.
+              <h2 className="text-xl font-bold text-amber-300">Registered Email IDs Directory</h2>
+              <p className="text-gray-400 text-xs mt-1">
+                List of unique email addresses with complete participant history.
               </p>
             </div>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2.5">
               <button
                 onClick={exportEmailCSV}
-                className="bg-yellow-400 hover:bg-yellow-500 text-black px-5 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2 shadow-lg"
+                className="bg-amber-400 hover:bg-amber-500 text-black px-4 py-2 rounded-xl font-bold text-xs transition flex items-center gap-2 shadow"
               >
-                📥 Download Grouped Email Directory CSV
+                <Download size={14} /> Download Email Directory CSV
               </button>
               <button
                 onClick={exportEmailDetailedCSV}
-                className="bg-amber-500 hover:bg-amber-600 text-black px-5 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2 shadow-lg"
+                className="bg-amber-500 hover:bg-amber-600 text-black px-4 py-2 rounded-xl font-bold text-xs transition flex items-center gap-2 shadow"
               >
-                📄 Download Detailed Participants CSV
+                <Download size={14} /> Download Detailed CSV
               </button>
             </div>
           </div>
 
-          <table className="w-full min-w-[900px] text-left">
+          <table className="w-full min-w-[900px] text-left border-collapse">
             <thead>
-              <tr className="bg-yellow-400 text-black">
-                <th className="p-4">Email Address</th>
-                <th className="p-4 text-center">Total Registered</th>
-                <th className="p-4">Registered Participants & Pass Details</th>
-                <th className="p-4">Phone Numbers</th>
-                <th className="p-4 text-center">Status Summary</th>
+              <tr className="bg-zinc-800 text-amber-300 font-bold text-xs uppercase tracking-wider border-b border-zinc-700">
+                <th className="p-3.5">Email Address</th>
+                <th className="p-3.5 text-center">Total Registered</th>
+                <th className="p-3.5">Registered Participants & Pass Details</th>
+                <th className="p-3.5">Phone Numbers</th>
+                <th className="p-3.5 text-center">Status Summary</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-zinc-800/80 text-xs">
               {filteredEmailKeys.map((email) => {
                 const regList = emailDirectoryMap[email];
                 const approved = regList.filter((u) => u.payment_status === 'approved').length;
@@ -1161,28 +873,28 @@ transition            border
                 const draft = regList.filter((u) => u.payment_status === 'draft').length;
 
                 return (
-                  <tr key={email} className="border-t border-white/10 hover:bg-white/5 transition">
-                    <td className="p-4 font-bold text-yellow-200">{email}</td>
-                    <td className="p-4 text-center font-black text-xl text-cyan-300">{regList.length}</td>
-                    <td className="p-4 space-y-2">
+                  <tr key={email} className="hover:bg-zinc-800/40 transition">
+                    <td className="p-3.5 font-bold text-amber-200">{email}</td>
+                    <td className="p-3.5 text-center font-black text-base text-cyan-300">{regList.length}</td>
+                    <td className="p-3.5 space-y-1.5">
                       {regList.map((u) => (
-                        <div key={u.registration_id} className="flex flex-wrap items-center gap-2 text-sm">
-                          <span className="font-semibold text-white">{u.full_name}</span>
-                          <span className="bg-yellow-400/10 text-yellow-300 px-2 py-0.5 rounded font-medium text-xs">
+                        <div key={u.registration_id} className="flex flex-wrap items-center gap-1.5 text-xs">
+                          <span className="font-bold text-white">{u.full_name}</span>
+                          <span className="bg-amber-400/10 text-amber-300 px-2 py-0.5 rounded font-medium text-[11px]">
                             {u.ticket_type}
                           </span>
                           {u.bib_number && (
-                            <span className="bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded font-bold text-xs">
+                            <span className="bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded font-bold text-[11px]">
                               #{u.bib_number}
                             </span>
                           )}
                           <span
-                            className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                               u.payment_status === 'approved'
-                                ? 'bg-green-500/20 text-green-300'
+                                ? 'bg-emerald-500/20 text-emerald-400'
                                 : u.payment_status === 'pending'
-                                ? 'bg-amber-500/20 text-amber-300'
-                                : 'bg-red-500/20 text-red-300'
+                                ? 'bg-amber-500/20 text-amber-400'
+                                : 'bg-red-500/20 text-red-400'
                             }`}
                           >
                             {u.payment_status}
@@ -1190,14 +902,14 @@ transition            border
                         </div>
                       ))}
                     </td>
-                    <td className="p-4 text-gray-300 text-sm">
+                    <td className="p-3.5 text-gray-300">
                       {Array.from(new Set(regList.map((u) => u.phone_number).filter(Boolean))).join(', ')}
                     </td>
-                    <td className="p-4 text-center">
-                      <div className="flex justify-center gap-2 text-xs font-bold">
-                        {approved > 0 && <span className="bg-green-500/20 text-green-300 px-2 py-1 rounded">✓ {approved} Approved</span>}
-                        {pending > 0 && <span className="bg-amber-500/20 text-amber-300 px-2 py-1 rounded">⏳ {pending} Pending</span>}
-                        {draft > 0 && <span className="bg-orange-500/20 text-orange-300 px-2 py-1 rounded">⚠️ {draft} Draft</span>}
+                    <td className="p-3.5 text-center">
+                      <div className="flex justify-center gap-1.5 text-[11px] font-bold">
+                        {approved > 0 && <span className="bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">✓ {approved} Approved</span>}
+                        {pending > 0 && <span className="bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded">⏳ {pending} Pending</span>}
+                        {draft > 0 && <span className="bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded">⚠️ {draft} Draft</span>}
                       </div>
                     </td>
                   </tr>
@@ -1207,190 +919,142 @@ transition            border
           </table>
         </div>
       ) : (
-        /* TABLE */
-        <div
-          className="
-            overflow-x-auto
-            bg-white/5
-            border-white/10
-            backdrop-blur-xl
-            hover:scale-105
-            transition
-            border
-            border-white/20
-            rounded-3xl
-            backdrop-blur-xl
-          "
-        >
-        <table
-          className="
-            w-full
-            min-w-[1000px]
-          "
-        >
-          <thead>
-            <tr
-              className="
-                bg-yellow-400
-                text-black
-              "
-            >
-              <th className="p-5">Name</th>
-
-              <th className="p-5">Email</th>
-
-              <th className="p-5">Phone</th>
-
-              <th className="p-5">Ticket Pass</th>
-
-              <th className="p-5">Category / Affiliation</th>
-
-              <th className="p-5">Other Participants</th>
-
-              <th className="p-5">Coupon Code</th>
-
-              <th className="p-5">UTR / Ref #</th>
-
-              <th className="p-5">Payment Proof</th>
-
-              <th className="p-5">Approval</th>
-
-              <th className="p-5">Entries</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {filteredUsers.map((user) => (
-              <tr
-                key={user.registration_id}
-                className="
-                  text-center
-                  border-t
-                  border-white/10
-                  hover:bg-white/5
-                  transition
-                "
-              >
-                {/* NAME */}
-                <td className="p-5 font-bold text-white">
-                  {user.full_name}
-                </td>
-
-                {/* EMAIL */}
-                <td className="p-5 text-gray-300">
-                  {user.email}
-                </td>
-
-                {/* PHONE */}
-                <td className="p-5 text-gray-300">
-                  {user.phone_number}
-                </td>
-
-                {/* TICKET */}
-                <td className="p-5">
-                  <span className="bg-yellow-400/10 text-yellow-300 px-3 py-1.5 rounded-xl font-bold text-xs">
-                    {user.ticket_type}
-                  </span>
-                </td>
-
-                {/* CLUB / CATEGORY */}
-                <td className="p-5">
-                  <span className="bg-cyan-400/10 text-cyan-300 border border-cyan-400/30 px-3 py-1.5 rounded-xl font-bold text-xs">
-                    {user.club_affiliation || 'None'}
-                  </span>
-                </td>
-
-                {/* OTHER PARTICIPANTS */}
-                <td className="p-5">
-                  {user.emergency_contact_name ? (
-                    <span className="bg-amber-500/15 text-amber-200 border border-amber-500/30 px-3 py-1.5 rounded-xl text-xs font-medium inline-block max-w-[220px] truncate" title={user.emergency_contact_name.replace('Attendees: ', '')}>
-                      👥 {user.emergency_contact_name.replace('Attendees: ', '')}
-                    </span>
-                  ) : (
-                    <span className="text-gray-500 text-xs font-semibold">-</span>
-                  )}
-                </td>
-
-                {/* COUPON CODE */}
-                <td className="p-5">
-                  {user.coupon_code ? (
-                    <span className="bg-violet-500/20 text-violet-300 border border-violet-500/40 px-3 py-1.5 rounded-xl font-bold uppercase text-xs tracking-wider">
-                      🏷️ {user.coupon_code}
-                    </span>
-                  ) : (
-                    <span className="text-gray-500 text-xs font-semibold">-</span>
-                  )}
-                </td>
-
-                {/* UTR / UPI REF NUMBER */}
-                <td className="p-5">
-                  {user.utr ? (
-                    <div className="flex flex-col items-center gap-1">
-                      <span className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-xl font-mono font-bold text-xs select-all">
-                        {user.utr}
-                      </span>
-                      <span className="text-[10px] text-gray-400">UPI Ref</span>
-                    </div>
-                  ) : (
-                    <span className="text-gray-500 text-xs font-semibold">-</span>
-                  )}
-                </td>
-
-                {/* PAYMENT IMAGE */}
-                <td className="p-5">
-                  <a 
-                    href={user.payment_proof?.startsWith('http') ? user.payment_proof : `${process.env.NEXT_PUBLIC_API_URL}/uploads/${user.payment_proof}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="cursor-pointer block hover:scale-105 transition"
-                  >
-                    <img
-                      src={user.payment_proof?.startsWith('http') ? user.payment_proof : `${process.env.NEXT_PUBLIC_API_URL}/uploads/${user.payment_proof}`}
-                      alt="Payment Proof"
-                      className="w-24 rounded-xl mx-auto border border-white/20"
-                    />
-                  </a>
-                </td>
-
-                {/* APPROVAL */}
-                <td className="p-5">
-                  {user.payment_status === 'approved' ? (
-                    <span className="text-green-400 font-bold">Approved ✅</span>
-                  ) : user.payment_status === 'draft' ? (
-                    <div className="flex flex-col items-center gap-1">
-                      <span className="bg-orange-500/20 text-orange-300 border border-orange-500/40 px-3 py-1 rounded-2xl font-bold text-xs mb-1">
-                        ⚠️ Incomplete (OTP Sent)
-                      </span>
-                      <button
-                        onClick={() => approvePayment(user.registration_id)}
-                        disabled={approvingId === user.registration_id}
-                        className={`bg-green-500 hover:bg-green-600 px-4 py-2 rounded-xl font-bold text-sm transition ${approvingId === user.registration_id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      >
-                        {approvingId === user.registration_id ? 'Approving...' : 'Approve'}
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => approvePayment(user.registration_id)}
-                      disabled={approvingId === user.registration_id}
-                      className={`bg-green-500 hover:bg-green-600 px-6 py-3 rounded-2xl font-bold text-sm transition ${approvingId === user.registration_id ? 'opacity-50 cursor-not-allowed' : ''}`}
+        <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl mb-10">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[950px]">
+              <thead>
+                <tr className="bg-zinc-800/90 text-zinc-300 font-bold text-xs uppercase tracking-wider border-b border-zinc-700/80">
+                  <th className="p-4">Attendee Name</th>
+                  <th className="p-4">Contact Info</th>
+                  <th className="p-4">Ticket Pass</th>
+                  <th className="p-4">Affiliation / Club</th>
+                  <th className="p-4">UPI UTR / Ref</th>
+                  <th className="p-4 text-center">Payment Proof</th>
+                  <th className="p-4 text-center">Status</th>
+                  <th className="p-4 text-center">Entries</th>
+                  <th className="p-4 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-800/60 text-xs sm:text-sm">
+                {filteredUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="p-12 text-center text-gray-400 font-medium">
+                      No attendee registrations found matching the current search & dropdown filters.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredUsers.map((user) => (
+                    <tr
+                      key={user.registration_id}
+                      className="hover:bg-zinc-800/40 transition group"
                     >
-                      {approvingId === user.registration_id ? 'Approving...' : 'Approve'}
-                    </button>
-                  )}
-                </td>
+                      {/* NAME */}
+                      <td className="p-4 font-bold text-white whitespace-nowrap">
+                        {user.full_name}
+                        {user.bib_number && (
+                          <span className="ml-2 bg-cyan-500/20 text-cyan-300 text-xs px-2 py-0.5 rounded font-mono border border-cyan-500/30">
+                            #{user.bib_number}
+                          </span>
+                        )}
+                      </td>
 
-                {/* ENTRY COUNT */}
-                <td className="p-5">
-                  <span className="text-yellow-300 font-bold">
-                    {user.used_entries}/{user.allowed_entries}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                      {/* CONTACT */}
+                      <td className="p-4 whitespace-nowrap">
+                        <p className="text-gray-200 text-xs font-semibold">{user.email}</p>
+                        <p className="text-gray-400 text-xs">{user.phone_number}</p>
+                      </td>
+
+                      {/* TICKET PASS */}
+                      <td className="p-4 whitespace-nowrap">
+                        <span className="bg-amber-400/10 text-amber-300 border border-amber-400/30 px-3 py-1 rounded-lg font-bold text-xs">
+                          {user.ticket_type}
+                        </span>
+                      </td>
+
+                      {/* AFFILIATION */}
+                      <td className="p-4 whitespace-nowrap">
+                        <span className="text-gray-300 text-xs font-medium">
+                          {user.club_affiliation || 'Public'}
+                        </span>
+                      </td>
+
+                      {/* UTR */}
+                      <td className="p-4 whitespace-nowrap">
+                        {user.utr ? (
+                          <span className="bg-zinc-950 text-emerald-400 border border-zinc-800 px-2.5 py-1 rounded-md font-mono text-xs select-all">
+                            {user.utr}
+                          </span>
+                        ) : (
+                          <span className="text-gray-500 text-xs">-</span>
+                        )}
+                      </td>
+
+                      {/* PAYMENT PROOF */}
+                      <td className="p-4 text-center whitespace-nowrap">
+                        {user.payment_proof ? (
+                          <a
+                            href={user.payment_proof?.startsWith('http') ? user.payment_proof : `${process.env.NEXT_PUBLIC_API_URL}/uploads/${user.payment_proof}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-block hover:scale-105 transition"
+                          >
+                            <img
+                              src={user.payment_proof?.startsWith('http') ? user.payment_proof : `${process.env.NEXT_PUBLIC_API_URL}/uploads/${user.payment_proof}`}
+                              alt="Proof"
+                              className="w-16 h-10 object-cover rounded-lg border border-zinc-700 mx-auto"
+                            />
+                          </a>
+                        ) : (
+                          <span className="text-gray-500 text-xs">-</span>
+                        )}
+                      </td>
+
+                      {/* STATUS */}
+                      <td className="p-4 text-center whitespace-nowrap">
+                        {user.payment_status === 'approved' ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                            <CheckCircle2 size={12} />
+                            Approved
+                          </span>
+                        ) : user.payment_status === 'draft' ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                            <AlertCircle size={12} />
+                            Incomplete
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                            <Clock size={12} />
+                            Pending
+                          </span>
+                        )}
+                      </td>
+
+                      {/* ENTRY COUNT */}
+                      <td className="p-4 text-center whitespace-nowrap">
+                        <span className="font-bold text-xs text-zinc-300">
+                          {user.used_entries}/{user.allowed_entries}
+                        </span>
+                      </td>
+
+                      {/* ACTION */}
+                      <td className="p-4 text-center whitespace-nowrap">
+                        {user.payment_status !== 'approved' && (
+                          <button
+                            onClick={() => approvePayment(user.registration_id)}
+                            disabled={approvingId === user.registration_id}
+                            className={`bg-emerald-500 hover:bg-emerald-400 text-black px-4 py-1.5 rounded-lg font-bold text-xs transition shadow ${approvingId === user.registration_id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            {approvingId === user.registration_id ? 'Approving...' : 'Approve'}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
     </div>
   );
