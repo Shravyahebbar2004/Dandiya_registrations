@@ -22,6 +22,30 @@ export default function MyTicketPage() {
   const [selectedRaceDetails, setSelectedRaceDetails] = useState<any>(null);
 
   // ====================================
+  // SHARE TICKET
+  // ====================================
+
+  const shareTicket = async (ticket: any) => {
+    const shareText = `Thank you for registering for ${ticket.title || 'Dandiya Night 12.0'}! 🎉\n\nHere is your official Entry Pass & QR Code:\n${window.location.href}\n\nWith regards,\nRotaract Club of Yelahanka`;
+
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: `${ticket.title} Entry Pass`,
+          text: shareText,
+          url: window.location.href,
+        });
+        return;
+      } catch (err) {
+        // Fallback to WhatsApp link if share sheet fails/canceled
+      }
+    }
+
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+    window.open(waUrl, '_blank');
+  };
+
+  // ====================================
   // GET TICKET
   // ====================================
 
@@ -71,7 +95,7 @@ export default function MyTicketPage() {
   const generateExactTicketCanvas = async (ticket: any): Promise<HTMLCanvasElement> => {
     const canvas = document.createElement('canvas');
     const width = 600;
-    const height = 920;
+    const height = 960;
     canvas.width = width * 2;
     canvas.height = height * 2;
 
@@ -103,35 +127,44 @@ export default function MyTicketPage() {
     ctx.fillStyle = '#121215';
     ctx.fillRect(cardX, cardY, cardW, cardH);
 
-    // 3. Header Banner (Gradient)
-    const headerH = 100;
+    // 3. Header Banner (Amber Gradient)
+    const headerH = 110;
     const grad = ctx.createLinearGradient(cardX, cardY, cardX + cardW, cardY);
-    grad.addColorStop(0, '#7c3aed');
-    grad.addColorStop(1, '#4f46e5');
+    grad.addColorStop(0, '#f59e0b');
+    grad.addColorStop(0.5, '#ea580c');
+    grad.addColorStop(1, '#e11d48');
 
     ctx.fillStyle = grad;
     ctx.fillRect(cardX, cardY, cardW, headerH);
 
-    // Header Title (Kannada Unicode Support via System Fonts)
+    // Header Title
     ctx.textAlign = 'center';
+    ctx.fillStyle = '#000000';
+    ctx.font = '900 12px system-ui, -apple-system, sans-serif';
+    ctx.fillText('🪩 OFFICIAL EVENT PASS', width / 2, cardY + 30);
+
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 28px system-ui, -apple-system, sans-serif';
-    ctx.fillText(ticket.title || 'EVENT', width / 2, cardY + 45);
+    ctx.fillText(ticket.title || 'EVENT', width / 2, cardY + 65);
 
-    ctx.fillStyle = '#ddd6fe';
-    ctx.font = '600 14px system-ui, -apple-system, sans-serif';
-    ctx.fillText(`PASS FOR ${(ticket.title || '').toUpperCase()}`, width / 2, cardY + 75);
+    ctx.fillStyle = '#fde68a';
+    ctx.font = '700 13px system-ui, -apple-system, sans-serif';
+    ctx.fillText(`PASS FOR ${(ticket.title || '').toUpperCase()}`, width / 2, cardY + 90);
 
-    // 4. Subtitle
+    // 4. Opening Greeting
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#c4b5fd';
-    ctx.font = 'bold 24px system-ui, -apple-system, sans-serif';
-    ctx.fillText('Entry Pass', width / 2, cardY + 145);
+    ctx.fillStyle = '#fde68a';
+    ctx.font = 'bold 17px system-ui, -apple-system, sans-serif';
+    ctx.fillText(`Thank you for registering for ${ticket.title || 'Dandiya Night 12.0'}! 🎉`, width / 2, cardY + 140);
+
+    ctx.fillStyle = '#f59e0b';
+    ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
+    ctx.fillText('Entry Pass Details', width / 2, cardY + 175);
 
     // 5. Ticket Details
     ctx.textAlign = 'left';
     const startX = cardX + 40;
-    let currentY = cardY + 190;
+    let currentY = cardY + 215;
     const lineGap = 32;
 
     const details = [
@@ -145,7 +178,7 @@ export default function MyTicketPage() {
     ];
 
     details.forEach(([label, val]) => {
-      ctx.fillStyle = '#c4b5fd';
+      ctx.fillStyle = '#fde68a';
       ctx.font = 'bold 16px system-ui, -apple-system, sans-serif';
       ctx.fillText(label, startX, currentY);
 
@@ -158,7 +191,7 @@ export default function MyTicketPage() {
 
     // 6. QR Code Image
     if (ticket.qr_code) {
-      const qrSize = 200;
+      const qrSize = 190;
       const qrX = width / 2 - qrSize / 2;
       const qrY = currentY + 10;
 
@@ -170,6 +203,11 @@ export default function MyTicketPage() {
         ctx.rect(qrX - 15, qrY - 15, qrSize + 30, qrSize + 30);
       }
       ctx.fill();
+
+      // Golden QR Border
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 3;
+      ctx.stroke();
 
       await new Promise((resolve) => {
         const img = new Image();
@@ -206,7 +244,7 @@ export default function MyTicketPage() {
             const waveIndex = Math.floor(runnerIndex / Number(details.wave_size));
             const waveLetter = String.fromCharCode(65 + waveIndex);
 
-            ctx.fillStyle = '#c4b5fd';
+            ctx.fillStyle = '#fde68a';
             ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
             ctx.fillText(`Wave ${waveLetter}`, width / 2, currentY + 10);
             currentY += 25;
@@ -215,16 +253,24 @@ export default function MyTicketPage() {
       }
     }
 
-    // 8. Footer Notice
+    // 8. Footer Notice & Rotaract Sign-off
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#9ca3af';
+    ctx.fillStyle = '#d1d5db';
     ctx.font = '15px system-ui, -apple-system, sans-serif';
-    ctx.fillText('Show this pass at the entrance', width / 2, cardY + cardH - 30);
+    ctx.fillText('Show this pass at the entrance ✨', width / 2, cardY + cardH - 65);
+
+    ctx.fillStyle = '#f59e0b';
+    ctx.font = 'bold 14px system-ui, -apple-system, sans-serif';
+    ctx.fillText('With regards,', width / 2, cardY + cardH - 40);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 17px system-ui, -apple-system, sans-serif';
+    ctx.fillText('Rotaract Club of Yelahanka', width / 2, cardY + cardH - 18);
 
     ctx.restore();
 
     // Outer Border
-    ctx.strokeStyle = 'rgba(139, 92, 246, 0.4)';
+    ctx.strokeStyle = 'rgba(245, 158, 11, 0.4)';
     ctx.lineWidth = 2;
     ctx.beginPath();
     if (typeof (ctx as any).roundRect === 'function') {
@@ -467,40 +513,41 @@ export default function MyTicketPage() {
                     id={`ticket-card-${ticket.registration_id}`}
                     className="
                       bg-zinc-950
-                      border-violet-500/30
+                      border-2
+                      border-amber-500/40
                       backdrop-blur-xl
-                      border
                       rounded-3xl
                       overflow-hidden
-                      shadow-2xl
+                      shadow-[0_0_50px_rgba(245,158,11,0.2)]
                     "
                   >
                     {/* HEADER */}
                     <div className="
-                      bg-gradient-to-r from-violet-600 to-indigo-600
+                      bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500
                       text-white
                       text-center
-                      py-4 sm:py-5
+                      py-5
                       px-4
                     ">
-                      <h2 className="text-2xl sm:text-4xl font-bold">
+                      <span className="inline-block bg-black/40 text-amber-300 text-[11px] sm:text-xs font-black px-3.5 py-1 rounded-full uppercase tracking-wider mb-2">
+                        🪩 OFFICIAL EVENT PASS
+                      </span>
+                      <h2 className="text-2xl sm:text-4xl font-black">
                         {ticket.title}
                       </h2>
-                      <p className="text-sm sm:text-lg mt-1 sm:mt-2 font-semibold text-violet-200">
+                      <p className="text-xs sm:text-sm mt-1 font-bold text-amber-100 uppercase tracking-widest">
                         PASS FOR {ticket.title?.toUpperCase()}
                       </p>
                     </div>
 
                     {/* BODY */}
                     <div className="p-5 sm:p-10 text-center">
-                      <h3 className="
-                        text-3xl
-                        text-violet-300
-                        font-bold
-                        mb-8
-                      ">
-                        Entry Pass
-                      </h3>
+                      {/* GREETING CARD */}
+                      <div className="mb-6 bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 max-w-md mx-auto">
+                        <p className="text-amber-300 font-bold text-base sm:text-lg">
+                          Thank you for registering for {ticket.title || 'Dandiya Night 12.0'}! 🎉
+                        </p>
+                      </div>
 
                       {/* DETAILS */}
                       <div className="
@@ -508,28 +555,33 @@ export default function MyTicketPage() {
                         max-w-md
                         mx-auto
                         mb-8
-                        space-y-4
+                        space-y-3
+                        bg-black/50
+                        border
+                        border-amber-500/20
+                        rounded-2xl
+                        p-5
                       ">
-                        <p className="text-white text-lg">
-                          <span className="text-violet-300 font-bold">Name:</span> {ticket.full_name}
+                        <p className="text-white text-base sm:text-lg">
+                          <span className="text-amber-300 font-bold">Name:</span> {ticket.full_name}
+                        </p>
+                        <p className="text-white text-base sm:text-lg">
+                          <span className="text-amber-300 font-bold">Phone No:</span> {ticket.phone_number}
+                        </p>
+                        <p className="text-white text-base sm:text-lg">
+                          <span className="text-amber-300 font-bold">Amount Paid:</span> ₹{ticket.total_amount}
+                        </p>
+                        <p className="text-white text-base sm:text-lg">
+                          <span className="text-amber-300 font-bold">Event:</span> {ticket.title}
                         </p>
                         <p className="text-white text-lg">
-                          <span className="text-violet-300 font-bold">Phone No:</span> {ticket.phone_number}
+                          <span className="text-amber-300 font-bold">Ticket:</span> {ticket.ticket_type} ({ticket.allowed_entries} members)
                         </p>
                         <p className="text-white text-lg">
-                          <span className="text-violet-300 font-bold">Amount Paid:</span> ₹{ticket.total_amount}
+                          <span className="text-amber-300 font-bold">Venue:</span> {ticket.venue}
                         </p>
                         <p className="text-white text-lg">
-                          <span className="text-violet-300 font-bold">Event:</span> {ticket.title}
-                        </p>
-                        <p className="text-white text-lg">
-                          <span className="text-violet-300 font-bold">Ticket:</span> {ticket.ticket_type} ({ticket.allowed_entries} members)
-                        </p>
-                        <p className="text-white text-lg">
-                          <span className="text-violet-300 font-bold">Venue:</span> {ticket.venue}
-                        </p>
-                        <p className="text-white text-lg">
-                          <span className="text-violet-300 font-bold">Date & Time:</span>{' '}
+                          <span className="text-amber-300 font-bold">Date & Time:</span>{' '}
                           {new Date(ticket.event_date).toLocaleDateString('en-IN', {
                             timeZone: 'Asia/Kolkata',
                             day: 'numeric',
@@ -554,11 +606,14 @@ export default function MyTicketPage() {
                           inline-block
                           p-5
                           rounded-3xl
+                          border-4
+                          border-amber-400
+                          shadow-[0_0_30px_rgba(245,158,11,0.3)]
                         ">
                           <img
                             src={ticket.qr_code}
                             alt="QR Code"
-                            className="w-52 h-52 md:w-72 md:h-72"
+                            className="w-52 h-52 md:w-64 md:h-64"
                           />
                         </div>
                       )}
@@ -577,7 +632,7 @@ export default function MyTicketPage() {
                                 const runnerIndex = ticket.bib_number - baseBib - 1;
                                 const waveIndex = Math.floor(runnerIndex / Number(details.wave_size));
                                 const waveLetter = String.fromCharCode(65 + waveIndex);
-                                return <p className="text-xl text-violet-300 font-bold mt-2">Wave {waveLetter}</p>;
+                                return <p className="text-xl text-amber-300 font-bold mt-2">Wave {waveLetter}</p>;
                               }
                             } catch (e) { }
                             return null;
@@ -586,9 +641,15 @@ export default function MyTicketPage() {
                       )}
 
                       {/* FOOTER */}
-                      <p className="text-gray-300 mt-8 text-lg">
-                        Show this pass at the entrance
+                      <p className="text-gray-300 mt-6 text-base font-semibold">
+                        Show this pass at the entrance ✨
                       </p>
+
+                      {/* SIGN-OFF */}
+                      <div className="mt-8 pt-6 border-t border-amber-500/20 text-center">
+                        <p className="text-amber-400 font-bold text-sm">With regards,</p>
+                        <p className="text-white font-black text-xl tracking-wide">Rotaract Club of Yelahanka</p>
+                      </div>
 
                       {/* WHATSAPP LINK */}
                       {ticket.whatsapp_link && (
@@ -605,32 +666,64 @@ export default function MyTicketPage() {
                         </div>
                       )}
 
-                      {/* DOWNLOAD & DETAILS BUTTONS */}
-                      <div data-html2canvas-ignore="true" className="flex flex-col md:flex-row justify-center gap-4 mt-8">
+                      {/* DOWNLOAD & SHARE BUTTONS */}
+                      <div data-html2canvas-ignore="true" className="flex flex-col sm:flex-row justify-center gap-4 mt-8">
                         {ticket.qr_code && (
                           <button
                             onClick={() => downloadPDF(ticket)}
                             disabled={downloadingId === ticket.registration_id}
                             className="
                                w-full
-                               md:w-auto
-                               bg-violet-500
-                               hover:bg-violet-600
-                               disabled:bg-violet-800
-                               text-white
-                               font-bold
-                               px-8
-                               py-4
+                               sm:w-auto
+                               bg-gradient-to-r
+                               from-amber-500
+                               to-orange-500
+                               hover:from-amber-400
+                               hover:to-orange-400
+                               disabled:opacity-50
+                               text-black
+                               font-black
+                               px-7
+                               py-3.5
                                rounded-2xl
-                               text-lg
+                               text-base
                                transition
                                shadow-lg
-                               shadow-violet-500/30
+                               shadow-amber-500/25
+                               flex
+                               items-center
+                               justify-center
+                               gap-2
                             "
                           >
-                            {downloadingId === ticket.registration_id ? 'Generating PDF...' : 'Download PDF Pass'}
+                            <span>📥</span> {downloadingId === ticket.registration_id ? 'Generating PDF...' : 'Download PDF Pass'}
                           </button>
                         )}
+
+                        <button
+                          onClick={() => shareTicket(ticket)}
+                          className="
+                            w-full
+                            sm:w-auto
+                            bg-emerald-600
+                            hover:bg-emerald-500
+                            text-white
+                            font-bold
+                            px-7
+                            py-3.5
+                            rounded-2xl
+                            text-base
+                            transition
+                            shadow-lg
+                            shadow-emerald-600/25
+                            flex
+                            items-center
+                            justify-center
+                            gap-2
+                          "
+                        >
+                          <span>📲</span> Share Ticket
+                        </button>
 
                         {ticket.category?.toLowerCase()?.trim() === 'marathon' && ticket.custom_pricing && (
                           <button
