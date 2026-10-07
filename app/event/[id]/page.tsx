@@ -210,25 +210,21 @@ export default function EventPage({
         {/* FESTIVE HIGHLIGHTS (CLEAN & MODERN CHIPS) */}
         {isDandiyaEvent && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-4xl mx-auto mb-8 sm:mb-12">
-            <div className="p-4 rounded-2xl bg-white/[0.025] border border-white/10 backdrop-blur-lg text-center hover:border-amber-400/30 transition">
-              <span className="text-2xl sm:text-3xl block mb-1">🪩</span>
+            <div className="p-4 rounded-2xl bg-white/[0.025] border border-white/10 backdrop-blur-lg text-center hover:border-amber-400/30 transition flex flex-col justify-center">
               <p className="font-bold text-white text-xs sm:text-sm">Live DJ & Dhol</p>
-              <p className="text-[11px] text-gray-400">High-energy festive beats</p>
+              <p className="text-[11px] text-gray-400 mt-1">High-energy festive beats</p>
             </div>
-            <div className="p-4 rounded-2xl bg-white/[0.025] border border-white/10 backdrop-blur-lg text-center hover:border-rose-400/30 transition">
-              <span className="text-2xl sm:text-3xl block mb-1">💃</span>
+            <div className="p-4 rounded-2xl bg-white/[0.025] border border-white/10 backdrop-blur-lg text-center hover:border-rose-400/30 transition flex flex-col justify-center">
               <p className="font-bold text-white text-xs sm:text-sm">Garba & Dandiya</p>
-              <p className="text-[11px] text-gray-400">Traditional Dandiya night</p>
+              <p className="text-[11px] text-gray-400 mt-1">Traditional Dandiya night</p>
             </div>
-            <div className="p-4 rounded-2xl bg-white/[0.025] border border-white/10 backdrop-blur-lg text-center hover:border-amber-400/30 transition">
-              <span className="text-2xl sm:text-3xl block mb-1">🍲</span>
+            <div className="p-4 rounded-2xl bg-white/[0.025] border border-white/10 backdrop-blur-lg text-center hover:border-amber-400/30 transition flex flex-col justify-center">
               <p className="font-bold text-white text-xs sm:text-sm">Festive Treats</p>
-              <p className="text-[11px] text-gray-400">Delicious food stalls</p>
+              <p className="text-[11px] text-gray-400 mt-1">Delicious food stalls</p>
             </div>
-            <div className="p-4 rounded-2xl bg-white/[0.025] border border-white/10 backdrop-blur-lg text-center hover:border-purple-400/30 transition">
-              <span className="text-2xl sm:text-3xl block mb-1">🏆</span>
+            <div className="p-4 rounded-2xl bg-white/[0.025] border border-white/10 backdrop-blur-lg text-center hover:border-purple-400/30 transition flex flex-col justify-center">
               <p className="font-bold text-white text-xs sm:text-sm">Exciting Awards</p>
-              <p className="text-[11px] text-gray-400">Best dancers & attire</p>
+              <p className="text-[11px] text-gray-400 mt-1">Best dancers & attire</p>
             </div>
           </div>
         )}
