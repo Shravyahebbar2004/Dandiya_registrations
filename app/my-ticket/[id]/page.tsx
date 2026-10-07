@@ -46,13 +46,17 @@ export default function MyTicketPage() {
         }
       );
 
-      if (response.data.data && response.data.data.length > 0) {
-        setTickets(response.data.data);
+      const approvedTickets = (response.data.data || []).filter((t: any) => t.payment_status === 'approved');
+
+      if (approvedTickets.length > 0) {
+        setTickets(approvedTickets);
       } else {
-        alert('No tickets found for the entered details.');
+        setTickets([]);
+        alert('Your payment approval is currently pending. Tickets will appear here once approved by an admin!');
       }
     } catch (error: any) {
       console.log(error);
+      setTickets([]);
       const serverMsg = error?.response?.data?.message || 'Tickets not found. Please verify your Email or Phone Number.';
       alert(serverMsg);
     } finally {
