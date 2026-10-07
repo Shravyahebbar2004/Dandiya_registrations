@@ -605,13 +605,9 @@ export default function AdminPage({
     (user) => user.payment_status === 'rejected'
   ).length;
 
-  const totalUsedEntries = users
-    .filter((user) => user.payment_status === 'approved')
-    .reduce((acc, u) => acc + (Number(u.used_entries) || 0), 0);
-
-  const totalAllowedEntries = users
-    .filter((user) => user.payment_status === 'approved')
-    .reduce((acc, u) => acc + (Number(u.allowed_entries) || 0), 0);
+  const totalEntries = users
+    .filter((user) => user.payment_status === 'approved' || user.payment_status === 'pending')
+    .reduce((acc, u) => acc + (Number(u.allowed_entries) || 1), 0);
 
   const count5k = users.filter(
     (user) => user.ticket_type?.toUpperCase().includes('5K') && user.payment_status === 'approved'
@@ -850,12 +846,10 @@ export default function AdminPage({
         <div className="bg-zinc-900/80 border border-cyan-500/20 rounded-2xl p-4 sm:p-5 shadow-lg flex items-center justify-between">
           <div>
             <p className="text-xs uppercase tracking-wider font-bold text-cyan-400">Total Entries</p>
-            <p className="text-2xl sm:text-3xl font-black text-cyan-300 mt-1">
-              {totalUsedEntries} <span className="text-xs text-gray-400 font-normal">/ {totalAllowedEntries}</span>
-            </p>
+            <p className="text-2xl sm:text-3xl font-black text-cyan-300 mt-1">{totalEntries}</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
-            <LogIn size={20} />
+            <Ticket size={20} />
           </div>
         </div>
 
