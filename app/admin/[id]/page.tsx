@@ -388,13 +388,6 @@ export default function AdminPage({
 
   const [users, setUsers] = useState<User[]>([]);
   const [search, setSearch] = useState('');
-  type StatusFilterType =
-    | 'all'
-    | 'approved'
-    | 'pending'
-    | 'draft'
-    | 'rejected'
-    | 'emails';
 
   const [statusFilter, setStatusFilter] = useState<StatusFilterType>('all');
   const [slabFilter, setSlabFilter] = useState<string>('all');
