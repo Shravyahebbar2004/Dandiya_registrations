@@ -13,6 +13,7 @@ interface AttendeeData {
   used_entries: number;
   allowed_entries: number;
   emergency_contact_name?: string;
+  checked_in_names?: string[] | string;
   utr?: string;
   payment_status?: string;
 }
@@ -315,6 +316,57 @@ export default function ScannerPage({
       .filter(Boolean);
   };
 
+  // Helper to parse checked in names array
+  const parseCheckedInNames = (data: any): string[] => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    try {
+      return JSON.parse(data);
+    } catch (e) {
+      return [];
+    }
+  };
+
+  // Interactive Participant Check-In & Block Handler
+  const handleCheckInParticipant = async (personName: string) => {
+    if (!scanResult?.attendee?.registration_id) return;
+    try {
+      const token =
+        localStorage.getItem('scanner_token') ||
+        localStorage.getItem('admin_token') ||
+        sessionStorage.getItem('admin_token') ||
+        sessionStorage.getItem('scanner_token');
+
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/checkin-participant`,
+        {
+          registration_id: scanResult.attendee.registration_id,
+          participant_name: personName
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      if (response.data.success) {
+        playSound(true);
+        const updatedList = parseCheckedInNames(response.data.checked_in_names);
+        setScanResult((prev: any) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            attendee: {
+              ...prev.attendee,
+              checked_in_names: updatedList
+            }
+          };
+        });
+      }
+    } catch (err) {
+      console.error('Participant Checkin Error:', err);
+    }
+  };
+
   if (!isAuthorized) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center text-white p-6">
@@ -547,30 +599,91 @@ export default function ScannerPage({
                     )}
                   </div>
 
-                  {/* OTHER TICKET HOLDERS / GROUP MEMBERS */}
-                  {scanResult.attendee?.emergency_contact_name && getGroupMembers(scanResult.attendee.emergency_contact_name).length > 0 && (
-                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 space-y-2">
-                      <span className="text-xs text-amber-300 font-black uppercase tracking-wider flex items-center gap-1.5">
-                        <span>👥</span> Group Ticket Holders ({getGroupMembers(scanResult.attendee.emergency_contact_name).length} Other Persons):
-                      </span>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
-                        {getGroupMembers(scanResult.attendee.emergency_contact_name).map((personName, idx) => (
-                          <div
-                            key={idx}
-                            className="bg-black/60 border border-white/10 px-3 py-1.5 rounded-lg flex items-center gap-2 text-xs font-bold text-gray-100"
-                          >
-                            <span className="w-4 h-4 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center text-[10px]">
-                              {idx + 1}
-                            </span>
-                            <span>{personName}</span>
-                          </div>
-                        ))}
+                  {/* INTERACTIVE PARTICIPANT CHECK-IN & BLOCKING SECTION */}
+                  {scanResult.attendee && (() => {
+                    const primaryName = scanResult.attendee.full_name;
+                    const groupMembers = getGroupMembers(scanResult.attendee.emergency_contact_name);
+                    const allNames = [primaryName, ...groupMembers];
+                    const checkedInList = parseCheckedInNames(scanResult.attendee.checked_in_names);
+                    const checkedInCount = allNames.filter(n => checkedInList.includes(n)).length;
+
+                    return (
+                      <div className="bg-amber-500/10 border-2 border-amber-500/30 rounded-2xl p-4 space-y-3">
+                        <div className="flex items-center justify-between border-b border-amber-500/20 pb-2">
+                          <span className="text-xs font-black text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                            <span>👥</span> Participant Attendance & Gate Blocking
+                          </span>
+                          <span className="bg-amber-500/20 text-amber-300 text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-amber-500/40">
+                            {checkedInCount} / {allNames.length} Entered
+                          </span>
+                        </div>
+
+                        <p className="text-[11px] text-gray-300 font-medium">
+                          👉 Tap a participant's name when they enter the gate to mark them <strong>CHECKED IN & BLOCKED</strong>.
+                        </p>
+
+                        <div className="space-y-2 pt-1">
+                          {allNames.map((personName, idx) => {
+                            const isCheckedIn = checkedInList.includes(personName);
+                            const isPrimary = idx === 0;
+
+                            return (
+                              <div key={idx} className="transition-all">
+                                {isCheckedIn ? (
+                                  <div className="bg-emerald-950/90 border-2 border-emerald-500/70 px-3.5 py-2.5 rounded-xl flex items-center justify-between shadow-md">
+                                    <div className="flex items-center gap-2.5">
+                                      <span className="w-6 h-6 rounded-full bg-emerald-500/30 text-emerald-300 font-black flex items-center justify-center text-xs border border-emerald-400/50">
+                                        ✓
+                                      </span>
+                                      <div>
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-sm font-bold text-emerald-200 line-through opacity-90">{personName}</span>
+                                          {isPrimary && (
+                                            <span className="bg-amber-500/20 text-amber-300 text-[9px] font-extrabold px-1.5 py-0.2 rounded uppercase">
+                                              Primary
+                                            </span>
+                                          )}
+                                        </div>
+                                        <span className="text-[10px] text-emerald-400 font-bold block uppercase tracking-wider">
+                                          ENTRY LOGGED & BLOCKED 🚫
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-black px-2.5 py-1 rounded-full border border-emerald-500/40">
+                                      BLOCKED ✅
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCheckInParticipant(personName)}
+                                    className="w-full bg-zinc-900 hover:bg-amber-500/20 border-2 border-amber-500/40 hover:border-amber-400 px-3.5 py-2.5 rounded-xl flex items-center justify-between transition-all group active:scale-95 text-left shadow-sm"
+                                  >
+                                    <div className="flex items-center gap-2.5">
+                                      <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 font-bold flex items-center justify-center text-xs group-hover:bg-amber-400 group-hover:text-black transition">
+                                        ⭕
+                                      </span>
+                                      <div>
+                                        <span className="text-sm font-bold text-white group-hover:text-amber-200">{personName}</span>
+                                        {isPrimary && (
+                                          <span className="bg-amber-500/20 text-amber-300 text-[9px] font-extrabold px-1.5 py-0.2 rounded uppercase ml-1.5">
+                                            Primary Purchaser
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <span className="bg-amber-500 text-black text-[11px] font-black px-3 py-1 rounded-full transition group-hover:scale-105 shadow-md flex items-center gap-1">
+                                      <span>Tap to Enter</span> ➔
+                                    </span>
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                      <p className="text-[10px] text-amber-200/70 italic mt-1">
-                        * Verify attendee identity against the listed group member names above.
-                      </p>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {/* PASS TYPE & TIMES SCANNED COUNT */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
