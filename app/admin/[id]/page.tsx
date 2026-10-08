@@ -45,6 +45,7 @@ interface User {
   used_entries: number;
   allowed_entries: number;
   emergency_contact_name: string;
+  checked_in_names?: string[] | string;
   emergency_contact: string;
   blood_group: string;
   coupon_code?: string;
@@ -72,6 +73,15 @@ export default function AdminPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = use(params);
+
+  type StatusFilterType =
+    | 'all'
+    | 'entered'
+    | 'approved'
+    | 'pending'
+    | 'draft'
+    | 'rejected'
+    | 'emails';
   const exportExcel = () => {
     const headers = [
       'Name',
@@ -79,11 +89,12 @@ export default function AdminPage({
       'Phone',
       'Ticket',
       'Category / Affiliation',
-      'Other Participant Names',
+      'Group / Other Participants',
+      'Checked-In Individual Names (Gate Log)',
       'UTR / UPI Ref',
       'Payment Status',
       'Coupon Used',
-      'Entries'
+      'Scanned Entries'
     ];
 
     const escapeXml = (str: any) => {
@@ -94,6 +105,17 @@ export default function AdminPage({
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&apos;');
+    };
+
+    const parseCheckedInStr = (raw: any) => {
+      if (!raw) return 'None';
+      if (Array.isArray(raw)) return raw.join(', ');
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) && parsed.length > 0 ? parsed.join(', ') : 'None';
+      } catch (e) {
+        return String(raw);
+      }
     };
 
     const buildWorksheetXml = (sheetName: string, userList: User[]) => {
@@ -116,6 +138,7 @@ export default function AdminPage({
           u.ticket_type,
           u.club_affiliation || 'None',
           u.emergency_contact_name ? (u.emergency_contact_name.startsWith('Attendees: ') ? u.emergency_contact_name.replace('Attendees: ', '') : u.emergency_contact_name) : '-',
+          parseCheckedInStr(u.checked_in_names),
           u.utr || '-',
           u.payment_status,
           u.coupon_code || '-',
@@ -133,15 +156,21 @@ export default function AdminPage({
 
     const sortedAsc = [...users].sort((a, b) => Number(a.registration_id) - Number(b.registration_id));
 
+    const isEnteredUser = (u: User) =>
+      Number(u.used_entries) > 0 ||
+      (u.checked_in_names &&
+        (Array.isArray(u.checked_in_names) ? u.checked_in_names.length > 0 : String(u.checked_in_names) !== '[]'));
+
     const sheetsData = [
       { name: 'Sheet 1 - All Registrations', data: users },
-      { name: 'Sheet 2 - Accepted (Approved)', data: users.filter((u) => u.payment_status === 'approved') },
-      { name: 'Sheet 3 - Pending Approval', data: users.filter((u) => u.payment_status === 'pending') },
-      { name: 'Sheet 4 - Incomplete Drafts', data: users.filter((u) => u.payment_status === 'draft') },
-      { name: 'Sheet 5 - Flash Sale Timeline', data: sortedAsc.filter((u, idx) => idx < 50 || u.coupon_code?.toLowerCase().includes('flash')) },
-      { name: 'Sheet 6 - Early Bird (Slab 1)', data: sortedAsc.filter((u, idx) => idx >= 50 && idx < 150) },
-      { name: 'Sheet 7 - Normal (Slab 2)', data: sortedAsc.filter((u, idx) => idx >= 150 && idx < 300) },
-      { name: 'Sheet 8 - Slab 3 Timeline', data: sortedAsc.filter((u, idx) => idx >= 300) }
+      { name: 'Sheet 2 - Gate Checked-In Log', data: users.filter(isEnteredUser) },
+      { name: 'Sheet 3 - Accepted (Approved)', data: users.filter((u) => u.payment_status === 'approved') },
+      { name: 'Sheet 4 - Pending Approval', data: users.filter((u) => u.payment_status === 'pending') },
+      { name: 'Sheet 5 - Incomplete Drafts', data: users.filter((u) => u.payment_status === 'draft') },
+      { name: 'Sheet 6 - Flash Sale Timeline', data: sortedAsc.filter((u, idx) => idx < 50 || u.coupon_code?.toLowerCase().includes('flash')) },
+      { name: 'Sheet 7 - Early Bird (Slab 1)', data: sortedAsc.filter((u, idx) => idx >= 50 && idx < 150) },
+      { name: 'Sheet 8 - Normal (Slab 2)', data: sortedAsc.filter((u, idx) => idx >= 150 && idx < 300) },
+      { name: 'Sheet 9 - Slab 3 Timeline', data: sortedAsc.filter((u, idx) => idx >= 300) }
     ];
 
     let workbookXml = `<?xml version="1.0"?>
@@ -181,12 +210,24 @@ export default function AdminPage({
       'Phone',
       'Ticket',
       'Category / Affiliation',
-      'Other Participant Names',
+      'Group / Other Participants',
+      'Checked-In Individual Names (Gate Log)',
       'UTR / UPI Ref',
       'Payment Status',
       'Coupon Used',
-      'Entries'
+      'Scanned Entries'
     ];
+
+    const parseCheckedInStr = (raw: any) => {
+      if (!raw) return 'None';
+      if (Array.isArray(raw)) return raw.join(', ');
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) && parsed.length > 0 ? parsed.join(', ') : 'None';
+      } catch (e) {
+        return String(raw);
+      }
+    };
 
     const rows = filteredUsers.map((user) => [
       user.full_name,
@@ -195,6 +236,7 @@ export default function AdminPage({
       user.ticket_type,
       user.club_affiliation || 'None',
       user.emergency_contact_name ? (user.emergency_contact_name.startsWith('Attendees: ') ? user.emergency_contact_name.replace('Attendees: ', '') : user.emergency_contact_name) : '-',
+      parseCheckedInStr(user.checked_in_names),
       user.utr || '-',
       user.payment_status,
       user.coupon_code || '-',
@@ -709,6 +751,20 @@ export default function AdminPage({
   const countMarathonPending = users.filter((u) => isMarathonUser(u) && u.payment_status === 'pending').length;
   const countMarathonDraft = users.filter((u) => isMarathonUser(u) && u.payment_status === 'draft').length;
 
+  const countEntered = useMemo(() => {
+    return users.filter((u) => {
+      if (Number(u.used_entries) > 0) return true;
+      if (!u.checked_in_names) return false;
+      if (Array.isArray(u.checked_in_names)) return u.checked_in_names.length > 0;
+      try {
+        const parsed = JSON.parse(u.checked_in_names);
+        return Array.isArray(parsed) && parsed.length > 0;
+      } catch (e) {
+        return false;
+      }
+    }).length;
+  }, [users]);
+
   // ====================================
   // SEARCH & CATEGORY FILTER WITH BIB SORT
   // ====================================
@@ -730,6 +786,9 @@ export default function AdminPage({
         // Status filter dropdown
         if (statusFilter === 'all') {
           if (user.payment_status === 'rejected') return false;
+        } else if (statusFilter === 'entered') {
+          const hasEntered = Number(user.used_entries) > 0 || (user.checked_in_names && (Array.isArray(user.checked_in_names) ? user.checked_in_names.length > 0 : String(user.checked_in_names) !== '[]'));
+          if (!hasEntered) return false;
         } else if (statusFilter === 'approved') {
           if (user.payment_status !== 'approved') return false;
         } else if (statusFilter === 'pending') {
@@ -945,6 +1004,7 @@ export default function AdminPage({
                 className="w-full p-2.5 rounded-xl bg-zinc-950/80 border border-zinc-800 text-amber-300 font-bold text-xs sm:text-sm focus:outline-none focus:border-amber-400 appearance-none cursor-pointer pr-8"
               >
                 <option value="all">📋 All Active Registrations ({totalUsers})</option>
+                <option value="entered">🚪 Checked-In & Gate Entries ({countEntered})</option>
                 <option value="approved">✓ Approved / Accepted ({approvedUsers})</option>
                 <option value="pending">⏳ Pending Approval ({pendingUsers})</option>
                 <option value="draft">⚠️ Incomplete / Drafts ({draftUsers})</option>
@@ -1073,6 +1133,7 @@ export default function AdminPage({
                   <th className="p-4">Attendee Name</th>
                   <th className="p-4">Contact Info</th>
                   <th className="p-4">Ticket Pass</th>
+                  <th className="p-4">Gate Checked-In Names</th>
                   <th className="p-4">Affiliation / Club</th>
                   <th className="p-4">UPI UTR / Ref</th>
                   <th className="p-4 text-center">Payment Proof</th>
@@ -1115,6 +1176,46 @@ export default function AdminPage({
                         <span className="bg-amber-400/10 text-amber-300 border border-amber-400/30 px-3 py-1 rounded-lg font-bold text-xs">
                           {user.ticket_type}
                         </span>
+                      </td>
+
+                      {/* GATE CHECKED-IN INDIVIDUALS */}
+                      <td className="p-4">
+                        {(() => {
+                          const raw = user.checked_in_names;
+                          let namesList: string[] = [];
+                          if (Array.isArray(raw)) {
+                            namesList = raw;
+                          } else if (raw) {
+                            try { namesList = JSON.parse(raw); } catch (e) { }
+                          }
+
+                          if (namesList.length > 0) {
+                            return (
+                              <div className="space-y-1 min-w-[160px]">
+                                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider block">
+                                  ✓ {namesList.length} Entered:
+                                </span>
+                                <div className="flex flex-wrap gap-1">
+                                  {namesList.map((name, idx) => (
+                                    <span key={idx} className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded text-[11px] font-bold flex items-center gap-1">
+                                      <span>✓</span> {name}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          if (Number(user.used_entries) > 0) {
+                            return (
+                              <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-md text-xs font-bold inline-block">
+                                ✓ {user.used_entries} Entry Scanned
+                              </span>
+                            );
+                          }
+
+                          return <span className="text-gray-500 text-xs italic">No Entries Yet</span>;
+                        })()}
                       </td>
 
                       {/* AFFILIATION */}
