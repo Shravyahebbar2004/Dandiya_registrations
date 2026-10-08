@@ -95,7 +95,7 @@ export default function MyTicketPage() {
   const generateExactTicketCanvas = async (ticket: any): Promise<HTMLCanvasElement> => {
     const canvas = document.createElement('canvas');
     const width = 600;
-    const height = 960;
+    const height = 1020;
     canvas.width = width * 2;
     canvas.height = height * 2;
 
@@ -253,19 +253,27 @@ export default function MyTicketPage() {
       }
     }
 
-    // 8. Footer Notice & Rotaract Sign-off
+    // 8. BOLD NOTE & ROTARACT SIGN-OFF
     ctx.textAlign = 'center';
+    ctx.fillStyle = '#ef4444';
+    ctx.font = '900 15px system-ui, -apple-system, sans-serif';
+    ctx.fillText('⚠️ NOTE: PLEASE STAR ⭐️ OR PIN 📌 THIS PASS!', width / 2, cardY + cardH - 100);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 12px system-ui, -apple-system, sans-serif';
+    ctx.fillText('You MUST show your QR code at the entrance on the date of the event.', width / 2, cardY + cardH - 80);
+
     ctx.fillStyle = '#d1d5db';
-    ctx.font = '15px system-ui, -apple-system, sans-serif';
-    ctx.fillText('Show this pass at the entrance ✨', width / 2, cardY + cardH - 65);
+    ctx.font = '14px system-ui, -apple-system, sans-serif';
+    ctx.fillText('Show this pass at the entrance ✨', width / 2, cardY + cardH - 55);
 
     ctx.fillStyle = '#f59e0b';
     ctx.font = 'bold 14px system-ui, -apple-system, sans-serif';
-    ctx.fillText('With regards,', width / 2, cardY + cardH - 40);
+    ctx.fillText('With regards,', width / 2, cardY + cardH - 35);
 
     ctx.fillStyle = '#ffffff';
     ctx.font = '900 17px system-ui, -apple-system, sans-serif';
-    ctx.fillText('Rotaract Club of Yelahanka', width / 2, cardY + cardH - 18);
+    ctx.fillText('Rotaract Club of Yelahanka', width / 2, cardY + cardH - 16);
 
     ctx.restore();
 
@@ -640,13 +648,23 @@ export default function MyTicketPage() {
                         </div>
                       )}
 
+                      {/* IMPORTANT BOLD NOTE */}
+                      <div className="mt-6 bg-red-500/15 border-2 border-red-500/60 rounded-2xl p-4 max-w-md mx-auto text-center space-y-1.5 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
+                        <p className="text-red-400 font-black text-sm sm:text-base uppercase tracking-wider flex items-center justify-center gap-1.5">
+                          <span>⚠️</span> <span>NOTE: PLEASE STAR ⭐️ OR PIN 📌 THIS PASS!</span>
+                        </p>
+                        <p className="text-white font-bold text-xs sm:text-sm leading-relaxed">
+                          You MUST show your QR code at the entrance on the date of the event. Without your QR pass, entry will not be permitted.
+                        </p>
+                      </div>
+
                       {/* FOOTER */}
-                      <p className="text-gray-300 mt-6 text-base font-semibold">
+                      <p className="text-gray-300 mt-5 text-base font-semibold">
                         Show this pass at the entrance ✨
                       </p>
 
                       {/* SIGN-OFF */}
-                      <div className="mt-8 pt-6 border-t border-amber-500/20 text-center">
+                      <div className="mt-6 pt-5 border-t border-amber-500/20 text-center">
                         <p className="text-amber-400 font-bold text-sm">With regards,</p>
                         <p className="text-white font-black text-xl tracking-wide">Rotaract Club of Yelahanka</p>
                       </div>
