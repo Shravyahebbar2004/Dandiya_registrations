@@ -211,22 +211,22 @@ export default function EventPage({
         {isDandiyaEvent && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-4xl mx-auto mb-8 sm:mb-12">
             <div className="p-4 sm:p-5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-lg text-center hover:border-amber-400/40 transition flex flex-col justify-center items-center shadow-lg hover:bg-white/[0.05]">
-              <span className="text-3xl sm:text-4xl mb-2">🥁 🪩</span>
+              <span className="text-3xl sm:text-4xl mb-2">🪩</span>
               <p className="font-black text-white text-sm sm:text-base">Live DJ & Dhols</p>
               <p className="text-[11px] text-amber-200/80 font-medium mt-1">High-energy festive beats</p>
             </div>
             <div className="p-4 sm:p-5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-lg text-center hover:border-rose-400/40 transition flex flex-col justify-center items-center shadow-lg hover:bg-white/[0.05]">
-              <span className="text-3xl sm:text-4xl mb-2">💃 🕺</span>
+              <span className="text-3xl sm:text-4xl mb-2">🕺</span>
               <p className="font-black text-white text-sm sm:text-base">Garba & Dandiya</p>
               <p className="text-[11px] text-rose-200/80 font-medium mt-1">Traditional Dandiya night</p>
             </div>
             <div className="p-4 sm:p-5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-lg text-center hover:border-amber-400/40 transition flex flex-col justify-center items-center shadow-lg hover:bg-white/[0.05]">
-              <span className="text-3xl sm:text-4xl mb-2">🍲 🍿</span>
+              <span className="text-3xl sm:text-4xl mb-2">🍲</span>
               <p className="font-black text-white text-sm sm:text-base">Festive Food Stalls</p>
               <p className="text-[11px] text-amber-200/80 font-medium mt-1">Delicious food & treats</p>
             </div>
             <div className="p-4 sm:p-5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-lg text-center hover:border-purple-400/40 transition flex flex-col justify-center items-center shadow-lg hover:bg-white/[0.05]">
-              <span className="text-3xl sm:text-4xl mb-2">🏆 🎁</span>
+              <span className="text-3xl sm:text-4xl mb-2">🏆</span>
               <p className="font-black text-white text-sm sm:text-base">Exciting Prizes</p>
               <p className="text-[11px] text-purple-200/80 font-medium mt-1">Best dancers & attire awards</p>
             </div>
