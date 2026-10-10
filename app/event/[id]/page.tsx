@@ -189,7 +189,7 @@ export default function EventPage({
                 whileTap={{ scale: 0.98 }}
                 className="w-full bg-gradient-to-r from-amber-500 via-rose-500 to-amber-500 hover:from-amber-400 hover:to-rose-400 text-black font-black text-base sm:text-lg py-3.5 px-6 rounded-2xl shadow-[0_0_25px_rgba(245,158,11,0.3)] transition flex items-center justify-center gap-2 cursor-pointer"
               >
-                <span>Book Passes</span>
+                <span>🎟️ Book Passes</span>
                 <ArrowRight size={18} />
               </motion.button>
             </Link>
@@ -199,32 +199,36 @@ export default function EventPage({
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-amber-400/40 text-white font-bold text-base py-3.5 px-6 rounded-2xl backdrop-blur-xl transition text-center shadow-lg cursor-pointer"
+                className="w-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-amber-400/40 text-white font-bold text-base py-3.5 px-6 rounded-2xl backdrop-blur-xl transition text-center shadow-lg cursor-pointer flex items-center justify-center gap-2"
               >
-                View My Ticket
+                <span>🎫 View My Ticket</span>
               </motion.button>
             </Link>
           )}
         </div>
 
-        {/* FESTIVE HIGHLIGHTS (CLEAN & MODERN CHIPS) */}
+        {/* FESTIVE HIGHLIGHTS (WITH VIBRANT EMOJIS & CARDS) */}
         {isDandiyaEvent && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-4xl mx-auto mb-8 sm:mb-12">
-            <div className="p-4 rounded-2xl bg-white/[0.025] border border-white/10 backdrop-blur-lg text-center hover:border-amber-400/30 transition flex flex-col justify-center">
-              <p className="font-bold text-white text-xs sm:text-sm">Live DJ & Dhol</p>
-              <p className="text-[11px] text-gray-400 mt-1">High-energy festive beats</p>
+            <div className="p-4 sm:p-5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-lg text-center hover:border-amber-400/40 transition flex flex-col justify-center items-center shadow-lg hover:bg-white/[0.05]">
+              <span className="text-3xl sm:text-4xl mb-2">🥁 🪩</span>
+              <p className="font-black text-white text-sm sm:text-base">Live DJ & Dhols</p>
+              <p className="text-[11px] text-amber-200/80 font-medium mt-1">High-energy festive beats</p>
             </div>
-            <div className="p-4 rounded-2xl bg-white/[0.025] border border-white/10 backdrop-blur-lg text-center hover:border-rose-400/30 transition flex flex-col justify-center">
-              <p className="font-bold text-white text-xs sm:text-sm">Garba & Dandiya</p>
-              <p className="text-[11px] text-gray-400 mt-1">Traditional Dandiya night</p>
+            <div className="p-4 sm:p-5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-lg text-center hover:border-rose-400/40 transition flex flex-col justify-center items-center shadow-lg hover:bg-white/[0.05]">
+              <span className="text-3xl sm:text-4xl mb-2">💃 🕺</span>
+              <p className="font-black text-white text-sm sm:text-base">Garba & Dandiya</p>
+              <p className="text-[11px] text-rose-200/80 font-medium mt-1">Traditional Dandiya night</p>
             </div>
-            <div className="p-4 rounded-2xl bg-white/[0.025] border border-white/10 backdrop-blur-lg text-center hover:border-amber-400/30 transition flex flex-col justify-center">
-              <p className="font-bold text-white text-xs sm:text-sm">Festive Treats</p>
-              <p className="text-[11px] text-gray-400 mt-1">Delicious food stalls</p>
+            <div className="p-4 sm:p-5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-lg text-center hover:border-amber-400/40 transition flex flex-col justify-center items-center shadow-lg hover:bg-white/[0.05]">
+              <span className="text-3xl sm:text-4xl mb-2">🍲 🍿</span>
+              <p className="font-black text-white text-sm sm:text-base">Festive Food Stalls</p>
+              <p className="text-[11px] text-amber-200/80 font-medium mt-1">Delicious food & treats</p>
             </div>
-            <div className="p-4 rounded-2xl bg-white/[0.025] border border-white/10 backdrop-blur-lg text-center hover:border-purple-400/30 transition flex flex-col justify-center">
-              <p className="font-bold text-white text-xs sm:text-sm">Exciting Awards</p>
-              <p className="text-[11px] text-gray-400 mt-1">Best dancers & attire</p>
+            <div className="p-4 sm:p-5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-lg text-center hover:border-purple-400/40 transition flex flex-col justify-center items-center shadow-lg hover:bg-white/[0.05]">
+              <span className="text-3xl sm:text-4xl mb-2">🏆 🎁</span>
+              <p className="font-black text-white text-sm sm:text-base">Exciting Prizes</p>
+              <p className="text-[11px] text-purple-200/80 font-medium mt-1">Best dancers & attire awards</p>
             </div>
           </div>
         )}
