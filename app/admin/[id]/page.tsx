@@ -52,6 +52,8 @@ interface User {
   club_affiliation?: string;
   bib_number?: number | string | null;
   utr?: string;
+  created_at?: string;
+  total_amount?: number;
 }
 
 interface Analytics {
@@ -82,12 +84,28 @@ export default function AdminPage({
     | 'draft'
     | 'rejected'
     | 'emails';
+  const getSlabLabel = (slab: string) => {
+    switch (slab) {
+      case 'flash_sale':
+        return '⚡ Flash Sale';
+      case 'slab1':
+        return '🐦 Early Bird (Slab 1)';
+      case 'slab2':
+        return '🎫 Normal (Slab 2)';
+      case 'slab3':
+        return '🔥 Slab 3';
+      default:
+        return 'Standard';
+    }
+  };
+
   const exportExcel = () => {
     const headers = [
       'Name',
       'Email',
       'Phone',
       'Ticket',
+      'Pricing Slab',
       'Category / Affiliation',
       'Group / Other Participants',
       'Checked-In Individual Names (Gate Log)',
@@ -131,11 +149,13 @@ export default function AdminPage({
       // Data Rows
       userList.forEach((u) => {
         xml += '<Row>';
+        const slabKey = userSlabMap.get(u.registration_id) || (Number(u.registration_id) <= 64 ? 'flash_sale' : 'slab1');
         const rowData = [
           u.full_name,
           u.email,
           u.phone_number,
           u.ticket_type,
+          getSlabLabel(slabKey),
           u.club_affiliation || 'None',
           u.emergency_contact_name ? (u.emergency_contact_name.startsWith('Attendees: ') ? u.emergency_contact_name.replace('Attendees: ', '') : u.emergency_contact_name) : '-',
           parseCheckedInStr(u.checked_in_names),
@@ -167,10 +187,10 @@ export default function AdminPage({
       { name: 'Sheet 3 - Accepted (Approved)', data: users.filter((u) => u.payment_status === 'approved') },
       { name: 'Sheet 4 - Pending Approval', data: users.filter((u) => u.payment_status === 'pending') },
       { name: 'Sheet 5 - Incomplete Drafts', data: users.filter((u) => u.payment_status === 'draft') },
-      { name: 'Sheet 6 - Flash Sale Timeline', data: sortedAsc.filter((u, idx) => idx < 50 || u.coupon_code?.toLowerCase().includes('flash')) },
-      { name: 'Sheet 7 - Early Bird (Slab 1)', data: sortedAsc.filter((u, idx) => idx >= 50 && idx < 150) },
-      { name: 'Sheet 8 - Normal (Slab 2)', data: sortedAsc.filter((u, idx) => idx >= 150 && idx < 300) },
-      { name: 'Sheet 9 - Slab 3 Timeline', data: sortedAsc.filter((u, idx) => idx >= 300) }
+      { name: 'Sheet 6 - Flash Sale Timeline', data: sortedAsc.filter((u) => (userSlabMap.get(u.registration_id) || (Number(u.registration_id) <= 64 ? 'flash_sale' : 'slab1')) === 'flash_sale') },
+      { name: 'Sheet 7 - Early Bird (Slab 1)', data: sortedAsc.filter((u) => (userSlabMap.get(u.registration_id) || (Number(u.registration_id) <= 64 ? 'flash_sale' : 'slab1')) === 'slab1') },
+      { name: 'Sheet 8 - Normal (Slab 2)', data: sortedAsc.filter((u) => userSlabMap.get(u.registration_id) === 'slab2') },
+      { name: 'Sheet 9 - Slab 3 Timeline', data: sortedAsc.filter((u) => userSlabMap.get(u.registration_id) === 'slab3') }
     ];
 
     let workbookXml = `<?xml version="1.0"?>
@@ -209,6 +229,7 @@ export default function AdminPage({
       'Email',
       'Phone',
       'Ticket',
+      'Pricing Slab',
       'Category / Affiliation',
       'Group / Other Participants',
       'Checked-In Individual Names (Gate Log)',
@@ -229,19 +250,23 @@ export default function AdminPage({
       }
     };
 
-    const rows = filteredUsers.map((user) => [
-      user.full_name,
-      user.email,
-      user.phone_number,
-      user.ticket_type,
-      user.club_affiliation || 'None',
-      user.emergency_contact_name ? (user.emergency_contact_name.startsWith('Attendees: ') ? user.emergency_contact_name.replace('Attendees: ', '') : user.emergency_contact_name) : '-',
-      parseCheckedInStr(user.checked_in_names),
-      user.utr || '-',
-      user.payment_status,
-      user.coupon_code || '-',
-      `${user.used_entries}/${user.allowed_entries}`
-    ]);
+    const rows = filteredUsers.map((user) => {
+      const slabKey = userSlabMap.get(user.registration_id) || (Number(user.registration_id) <= 64 ? 'flash_sale' : 'slab1');
+      return [
+        user.full_name,
+        user.email,
+        user.phone_number,
+        user.ticket_type,
+        getSlabLabel(slabKey),
+        user.club_affiliation || 'None',
+        user.emergency_contact_name ? (user.emergency_contact_name.startsWith('Attendees: ') ? user.emergency_contact_name.replace('Attendees: ', '') : user.emergency_contact_name) : '-',
+        parseCheckedInStr(user.checked_in_names),
+        user.utr || '-',
+        user.payment_status,
+        user.coupon_code || '-',
+        `${user.used_entries}/${user.allowed_entries}`
+      ];
+    });
 
     const csvContent =
       [headers, ...rows]
@@ -387,6 +412,7 @@ export default function AdminPage({
   // ====================================
 
   const [users, setUsers] = useState<User[]>([]);
+  const [event, setEvent] = useState<any>(null);
   const [search, setSearch] = useState('');
 
   const [statusFilter, setStatusFilter] = useState<StatusFilterType>('all');
@@ -425,6 +451,17 @@ export default function AdminPage({
       );
 
       if (response.data && response.data.success) {
+        if (response.data.event) {
+          setEvent(response.data.event);
+        } else {
+          axios
+            .get(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/event/${id}`)
+            .then((res) => {
+              if (res.data?.event) setEvent(res.data.event);
+            })
+            .catch(() => {});
+        }
+
         const rawRegistrations: User[] = response.data.registrations || [];
         const sortedRegistrations = [...rawRegistrations].sort(
           (a, b) => Number(a.registration_id) - Number(b.registration_id)
@@ -735,10 +772,84 @@ export default function AdminPage({
     return [...users].sort((a, b) => Number(a.registration_id) - Number(b.registration_id));
   }, [users]);
 
-  const countFlashSale = sortedAscUsers.filter((u, idx) => idx < 50 || u.coupon_code?.toLowerCase().includes('flash')).length;
-  const countSlab1 = sortedAscUsers.filter((u, idx) => idx >= 50 && idx < 150).length;
-  const countSlab2 = sortedAscUsers.filter((u, idx) => idx >= 150 && idx < 300).length;
-  const countSlab3 = sortedAscUsers.filter((u, idx) => idx >= 300).length;
+  // Accurate Slab Mapping based on Flash Sale cutoff (Oct 7 18:05:43 UTC / Reg ID <= 64),
+  // Early Bird ticket pricing/names, and cumulative entries within thresholds
+  const userSlabMap = useMemo(() => {
+    const map = new Map<number, 'flash_sale' | 'slab1' | 'slab2' | 'slab3'>();
+
+    let flashThreshold = 50;
+    let slab1Threshold = 200;
+    let slab2Threshold = 300;
+
+    if (event?.custom_pricing) {
+      try {
+        const cfg = typeof event.custom_pricing === 'string'
+          ? JSON.parse(event.custom_pricing)
+          : event.custom_pricing;
+        if (cfg.flash_sale?.threshold) flashThreshold = Number(cfg.flash_sale.threshold) || 50;
+        if (cfg.slab1?.threshold) slab1Threshold = Number(cfg.slab1.threshold) || 200;
+        if (cfg.slab2?.threshold) slab2Threshold = Number(cfg.slab2.threshold) || 300;
+      } catch (e) {}
+    }
+
+    // Flash sale officially closed timestamp: Oct 7 2026 18:05:43 UTC
+    const flashSaleClosedAt = new Date('2026-10-07T18:05:43Z').getTime();
+
+    let cumulativeTickets = 0;
+
+    sortedAscUsers.forEach((u) => {
+      const regId = Number(u.registration_id);
+      const createdAt = u.created_at ? new Date(u.created_at).getTime() : 0;
+      const entries = Number(u.allowed_entries) || 1;
+      const isCounted = u.payment_status !== 'rejected' && u.payment_status !== 'draft';
+
+      const tLower = (u.ticket_type || '').toLowerCase();
+      const cLower = (u.coupon_code || '').toLowerCase();
+
+      let slab: 'flash_sale' | 'slab1' | 'slab2' | 'slab3' = 'slab1';
+
+      if (tLower.includes('early bird') || cLower.includes('early')) {
+        slab = 'slab1';
+      } else if (cLower.includes('flash')) {
+        slab = 'flash_sale';
+      } else if (regId <= 64 || (createdAt > 0 && createdAt < flashSaleClosedAt)) {
+        slab = 'flash_sale';
+      } else {
+        const ticketPos = cumulativeTickets + (isCounted ? entries : 0);
+        if (ticketPos <= slab1Threshold) {
+          slab = 'slab1';
+        } else if (ticketPos <= slab2Threshold) {
+          slab = 'slab2';
+        } else {
+          slab = 'slab3';
+        }
+      }
+
+      if (isCounted) {
+        cumulativeTickets += entries;
+      }
+
+      map.set(regId, slab);
+    });
+
+    return map;
+  }, [sortedAscUsers, event]);
+
+  const countFlashSale = useMemo(() => {
+    return sortedAscUsers.filter((u) => userSlabMap.get(u.registration_id) === 'flash_sale').length;
+  }, [sortedAscUsers, userSlabMap]);
+
+  const countSlab1 = useMemo(() => {
+    return sortedAscUsers.filter((u) => userSlabMap.get(u.registration_id) === 'slab1').length;
+  }, [sortedAscUsers, userSlabMap]);
+
+  const countSlab2 = useMemo(() => {
+    return sortedAscUsers.filter((u) => userSlabMap.get(u.registration_id) === 'slab2').length;
+  }, [sortedAscUsers, userSlabMap]);
+
+  const countSlab3 = useMemo(() => {
+    return sortedAscUsers.filter((u) => userSlabMap.get(u.registration_id) === 'slab3').length;
+  }, [sortedAscUsers, userSlabMap]);
 
   const countMarathonAccepted = users.filter((u) => isMarathonUser(u) && u.payment_status === 'approved').length;
   const countMarathonPending = users.filter((u) => isMarathonUser(u) && u.payment_status === 'pending').length;
@@ -793,14 +904,11 @@ export default function AdminPage({
         }
 
         // Slab filter dropdown
-        const idx = sortedAscUsers.findIndex((u) => u.registration_id === user.registration_id);
-        if (slabFilter === 'flash_sale') {
-          const matchesFlash = idx < 50 || user.coupon_code?.toLowerCase().includes('flash');
-          if (!matchesFlash) return false;
-        }
-        if (slabFilter === 'slab1' && !(idx >= 50 && idx < 150)) return false;
-        if (slabFilter === 'slab2' && !(idx >= 150 && idx < 300)) return false;
-        if (slabFilter === 'slab3' && !(idx >= 300)) return false;
+        const userSlab = userSlabMap.get(user.registration_id) || (Number(user.registration_id) <= 64 ? 'flash_sale' : 'slab1');
+        if (slabFilter === 'flash_sale' && userSlab !== 'flash_sale') return false;
+        if (slabFilter === 'slab1' && userSlab !== 'slab1') return false;
+        if (slabFilter === 'slab2' && userSlab !== 'slab2') return false;
+        if (slabFilter === 'slab3' && userSlab !== 'slab3') return false;
 
         return true;
       })
@@ -1166,9 +1274,43 @@ export default function AdminPage({
 
                       {/* TICKET PASS */}
                       <td className="p-4 whitespace-nowrap">
-                        <span className="bg-amber-400/10 text-amber-300 border border-amber-400/30 px-3 py-1 rounded-lg font-bold text-xs">
-                          {user.ticket_type}
-                        </span>
+                        <div className="flex flex-col gap-1.5 items-start">
+                          <span className="bg-amber-400/10 text-amber-300 border border-amber-400/30 px-3 py-1 rounded-lg font-bold text-xs">
+                            {user.ticket_type}
+                          </span>
+                          {(() => {
+                            const slab = userSlabMap.get(user.registration_id) || (Number(user.registration_id) <= 64 ? 'flash_sale' : 'slab1');
+                            if (slab === 'flash_sale') {
+                              return (
+                                <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded text-[10px] font-black tracking-wide flex items-center gap-1 shadow-sm">
+                                  ⚡ Flash Sale
+                                </span>
+                              );
+                            }
+                            if (slab === 'slab1') {
+                              return (
+                                <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded text-[10px] font-black tracking-wide flex items-center gap-1 shadow-sm">
+                                  🐦 Early Bird
+                                </span>
+                              );
+                            }
+                            if (slab === 'slab2') {
+                              return (
+                                <span className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 px-2 py-0.5 rounded text-[10px] font-black tracking-wide flex items-center gap-1 shadow-sm">
+                                  🎫 Normal (Slab 2)
+                                </span>
+                              );
+                            }
+                            if (slab === 'slab3') {
+                              return (
+                                <span className="bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2 py-0.5 rounded text-[10px] font-black tracking-wide flex items-center gap-1 shadow-sm">
+                                  🔥 Slab 3
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
                       </td>
 
                       {/* GATE CHECKED-IN INDIVIDUALS */}
