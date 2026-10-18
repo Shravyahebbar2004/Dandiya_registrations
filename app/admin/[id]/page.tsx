@@ -31,7 +31,12 @@ import {
   RotateCcw,
   Ban,
   Ticket,
-  LogIn
+  LogIn,
+  HelpCircle,
+  MessageCircleQuestion,
+  Send,
+  Trash2,
+  X
 } from 'lucide-react';
 
 interface User {
@@ -427,6 +432,79 @@ export default function AdminPage({
     useState<Analytics | null>(null);
 
   // ====================================
+  // ATTENDEE QUERIES (Q&A) STATES & HANDLERS
+  // ====================================
+  const [adminQueries, setAdminQueries] = useState<any[]>([]);
+  const [loadingAdminQueries, setLoadingAdminQueries] = useState(false);
+  const [showQueriesModal, setShowQueriesModal] = useState(false);
+  const [replyTextMap, setReplyTextMap] = useState<{ [id: number]: string }>({});
+  const [submittingAnswerId, setSubmittingAnswerId] = useState<number | null>(null);
+  const [queryFilter, setQueryFilter] = useState<'all' | 'pending' | 'answered'>('all');
+
+  const fetchAdminQueries = async () => {
+    try {
+      const adminToken = sessionStorage.getItem('admin_token') || localStorage.getItem('admin_token');
+      if (!adminToken) return;
+      setLoadingAdminQueries(true);
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/admin/${id}/queries`, {
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+      if (res.data && res.data.success) {
+        setAdminQueries(res.data.queries || []);
+        // Pre-fill existing answers in replyTextMap
+        const textMap: { [id: number]: string } = {};
+        (res.data.queries || []).forEach((q: any) => {
+          if (q.answer) textMap[q.query_id] = q.answer;
+        });
+        setReplyTextMap(textMap);
+      }
+    } catch (err) {
+      console.log('Error fetching admin queries:', err);
+    } finally {
+      setLoadingAdminQueries(false);
+    }
+  };
+
+  const handleAnswerQuery = async (queryId: number) => {
+    const answer = replyTextMap[queryId];
+    if (!answer || !answer.trim()) {
+      alert('Please enter an answer before publishing.');
+      return;
+    }
+    try {
+      const adminToken = sessionStorage.getItem('admin_token') || localStorage.getItem('admin_token');
+      setSubmittingAnswerId(queryId);
+      const res = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/admin/queries/${queryId}/answer`,
+        { answer: answer.trim(), answered_by: 'Event Organizer' },
+        { headers: { Authorization: `Bearer ${adminToken}` } }
+      );
+      if (res.data && res.data.success) {
+        fetchAdminQueries();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to submit answer.');
+    } finally {
+      setSubmittingAnswerId(null);
+    }
+  };
+
+  const handleDeleteQuery = async (queryId: number) => {
+    if (!confirm('Are you sure you want to delete this query?')) return;
+    try {
+      const adminToken = sessionStorage.getItem('admin_token') || localStorage.getItem('admin_token');
+      await axios.delete(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/admin/queries/${queryId}`, {
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+      fetchAdminQueries();
+    } catch (err) {
+      alert('Failed to delete query.');
+    }
+  };
+
+  const pendingQueriesCount = adminQueries.filter((q) => q.status === 'PENDING').length;
+
+  // ====================================
   // FETCH USERS
   // ====================================
 
@@ -646,6 +724,7 @@ export default function AdminPage({
 
     fetchUsers();
     fetchAnalytics();
+    fetchAdminQueries();
 
     const interval = setInterval(() => {
       fetchUsers();
@@ -997,6 +1076,22 @@ export default function AdminPage({
           >
             <Edit size={16} />
             <span>Edit Event</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setShowQueriesModal(true);
+              fetchAdminQueries();
+            }}
+            className="relative bg-gradient-to-r from-amber-600/80 to-orange-600/80 hover:from-amber-600 hover:to-orange-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2 border border-amber-500/40 shadow-lg cursor-pointer"
+          >
+            <HelpCircle size={16} className="text-amber-300" />
+            <span>Attendee Q&A</span>
+            {pendingQueriesCount > 0 && (
+              <span className="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full animate-pulse shadow">
+                {pendingQueriesCount} new
+              </span>
+            )}
           </button>
 
           <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold">
@@ -1467,6 +1562,191 @@ export default function AdminPage({
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+      {/* ATTENDEE QUERIES & Q&A MANAGEMENT MODAL */}
+      {showQueriesModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* MODAL HEADER */}
+            <div className="p-6 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/60">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center text-black font-black">
+                  <HelpCircle size={22} className="text-black" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-white flex items-center gap-2">
+                    <span>Attendee Queries & Q&A</span>
+                    {pendingQueriesCount > 0 && (
+                      <span className="bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs px-2 py-0.5 rounded-full font-bold">
+                        {pendingQueriesCount} Pending
+                      </span>
+                    )}
+                  </h2>
+                  <p className="text-gray-400 text-xs">
+                    Review and reply to attendee questions. Answered queries display publicly on the event page.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowQueriesModal(false)}
+                className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* FILTER TABS */}
+            <div className="px-6 py-3 border-b border-zinc-800 bg-zinc-900/60 flex items-center gap-2 text-xs font-bold">
+              <button
+                onClick={() => setQueryFilter('all')}
+                className={`px-3 py-1.5 rounded-lg transition ${queryFilter === 'all' ? 'bg-amber-500 text-black font-black' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}`}
+              >
+                All Queries ({adminQueries.length})
+              </button>
+              <button
+                onClick={() => setQueryFilter('pending')}
+                className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${queryFilter === 'pending' ? 'bg-rose-500 text-white font-black' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}`}
+              >
+                <span>Pending Reply</span>
+                <span className="bg-black/30 px-1.5 py-0.2 rounded-full text-[10px]">{pendingQueriesCount}</span>
+              </button>
+              <button
+                onClick={() => setQueryFilter('answered')}
+                className={`px-3 py-1.5 rounded-lg transition ${queryFilter === 'answered' ? 'bg-emerald-500 text-black font-black' : 'text-gray-400 hover:text-white hover:bg-zinc-800'}`}
+              >
+                Answered & Published ({adminQueries.filter(q => q.status === 'ANSWERED').length})
+              </button>
+            </div>
+
+            {/* QUERIES LIST */}
+            <div className="p-6 overflow-y-auto space-y-4 flex-1">
+              {loadingAdminQueries ? (
+                <div className="p-12 text-center">
+                  <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                  <p className="text-gray-400 text-sm">Loading queries...</p>
+                </div>
+              ) : adminQueries.length === 0 ? (
+                <div className="p-12 text-center text-gray-400 text-sm bg-zinc-950/40 rounded-2xl border border-zinc-800">
+                  No attendee queries found for this event yet.
+                </div>
+              ) : (
+                adminQueries
+                  .filter((q) => {
+                    if (queryFilter === 'pending') return q.status === 'PENDING';
+                    if (queryFilter === 'answered') return q.status === 'ANSWERED';
+                    return true;
+                  })
+                  .map((q) => (
+                    <div
+                      key={q.query_id}
+                      className="p-5 rounded-2xl bg-zinc-950/60 border border-zinc-800 hover:border-zinc-700 transition space-y-3"
+                    >
+                      {/* QUERY META */}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase border ${
+                              q.status === 'ANSWERED'
+                                ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                                : 'bg-rose-500/10 text-rose-300 border-rose-500/30 animate-pulse'
+                            }`}
+                          >
+                            {q.status === 'ANSWERED' ? '✓ Answered' : '⏳ Pending Reply'}
+                          </span>
+                          {q.is_pinned && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                              📌 Pinned
+                            </span>
+                          )}
+                          <span className="text-xs text-gray-400">
+                            {new Date(q.created_at).toLocaleString('en-IN', {
+                              day: 'numeric',
+                              month: 'short',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={() => handleDeleteQuery(q.query_id)}
+                          className="text-gray-500 hover:text-red-400 transition p-1 cursor-pointer"
+                          title="Delete Query"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+
+                      {/* QUESTION */}
+                      <div>
+                        <p className="text-sm sm:text-base font-bold text-white leading-snug">
+                          {q.question}
+                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-gray-400">
+                          <span>
+                            Asked by: <strong className="text-gray-200">{q.user_name}</strong>
+                          </span>
+                          {q.user_contact && (
+                            <span className="text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded font-mono text-[11px]">
+                              {q.user_contact}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* ANSWER INPUT OR DISPLAY */}
+                      <div className="pt-2 border-t border-zinc-800/80">
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-amber-300 mb-1.5 flex items-center gap-1.5">
+                          <CheckCircle2 size={13} className="text-amber-400" />
+                          <span>Organizer Reply:</span>
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={replyTextMap[q.query_id] ?? (q.answer || '')}
+                          onChange={(e) =>
+                            setReplyTextMap({ ...replyTextMap, [q.query_id]: e.target.value })
+                          }
+                          placeholder="Type official answer to be published to the event page..."
+                          className="w-full p-3 rounded-xl bg-zinc-900 border border-zinc-700 text-white placeholder-gray-500 text-xs sm:text-sm focus:outline-none focus:border-amber-400 transition resize-none mb-2"
+                        />
+                        <div className="flex justify-between items-center">
+                          {q.answered_at ? (
+                            <span className="text-[11px] text-gray-400">
+                              Answered {new Date(q.answered_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} by {q.answered_by || 'Organizer'}
+                            </span>
+                          ) : <span />}
+                          <button
+                            onClick={() => handleAnswerQuery(q.query_id)}
+                            disabled={submittingAnswerId === q.query_id}
+                            className="bg-amber-500 hover:bg-amber-400 text-black font-black text-xs px-4 py-2 rounded-xl transition flex items-center gap-1.5 shadow cursor-pointer disabled:opacity-50"
+                          >
+                            {submittingAnswerId === q.query_id ? (
+                              <span>Publishing...</span>
+                            ) : (
+                              <>
+                                <Send size={13} />
+                                <span>{q.status === 'ANSWERED' ? 'Update Answer' : 'Publish Answer'}</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+              )}
+            </div>
+
+            {/* MODAL FOOTER */}
+            <div className="p-4 border-t border-zinc-800 bg-zinc-950/60 flex justify-end">
+              <button
+                onClick={() => setShowQueriesModal(false)}
+                className="px-5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold transition cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

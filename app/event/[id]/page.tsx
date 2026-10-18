@@ -3,7 +3,20 @@
 import { use, useEffect, useState } from 'react';
 import axios from 'axios';
 import Link from 'next/link';
-import { CalendarDays, MapPin, ArrowRight } from 'lucide-react';
+import {
+  CalendarDays,
+  MapPin,
+  ArrowRight,
+  HelpCircle,
+  MessageCircleQuestion,
+  Send,
+  CheckCircle2,
+  AlertCircle,
+  Baby,
+  User,
+  Mail,
+  Sparkles
+} from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function EventPage({
@@ -26,6 +39,65 @@ export default function EventPage({
   });
 
   const [isExpired, setIsExpired] = useState(false);
+
+  // Queries & Community Q&A State
+  const [queries, setQueries] = useState<any[]>([]);
+  const [loadingQueries, setLoadingQueries] = useState(false);
+  const [queryName, setQueryName] = useState('');
+  const [queryContact, setQueryContact] = useState('');
+  const [queryQuestion, setQueryQuestion] = useState('');
+  const [submittingQuery, setSubmittingQuery] = useState(false);
+  const [querySuccessMsg, setQuerySuccessMsg] = useState('');
+  const [queryErrorMsg, setQueryErrorMsg] = useState('');
+
+  const fetchQueries = async () => {
+    try {
+      setLoadingQueries(true);
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/event/${id}/queries`);
+      if (res.data && res.data.success) {
+        setQueries(res.data.queries || []);
+      }
+    } catch (err) {
+      console.log('Error fetching queries:', err);
+    } finally {
+      setLoadingQueries(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchQueries();
+  }, [id]);
+
+  const handleQuerySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!queryName.trim() || !queryQuestion.trim()) {
+      setQueryErrorMsg('Please fill in both your name and your query.');
+      return;
+    }
+
+    try {
+      setSubmittingQuery(true);
+      setQueryErrorMsg('');
+      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/event/${id}/queries`, {
+        user_name: queryName,
+        user_contact: queryContact,
+        question: queryQuestion
+      });
+
+      if (res.data && res.data.success) {
+        setQuerySuccessMsg('Your query has been submitted! Our organizers will answer it shortly.');
+        setQueryName('');
+        setQueryContact('');
+        setQueryQuestion('');
+        fetchQueries();
+        setTimeout(() => setQuerySuccessMsg(''), 8000);
+      }
+    } catch (err: any) {
+      setQueryErrorMsg(err.response?.data?.message || 'Failed to submit query. Please try again.');
+    } finally {
+      setSubmittingQuery(false);
+    }
+  };
 
   // =====================================
   // FETCH EVENT
@@ -316,6 +388,224 @@ export default function EventPage({
             </p>
           </div>
         )}
+
+        {/* EVENT QUERIES & COMMUNITY Q&A SECTION */}
+        <section className="max-w-3xl mx-auto mb-16">
+          {/* SECTION HEADER */}
+          <div className="text-center mb-8">
+            <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-300 border border-amber-500/25 mb-3">
+              <MessageCircleQuestion size={14} />
+              <span>Event Queries & Guidelines</span>
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-black bg-gradient-to-r from-amber-200 via-white to-rose-200 bg-clip-text text-transparent">
+              Frequently Asked Queries
+            </h2>
+            <p className="text-gray-400 text-xs sm:text-sm mt-2 max-w-xl mx-auto">
+              Everything you need to know before attending. Have a doubt? Ask our organizers below!
+            </p>
+          </div>
+
+          {/* OFFICIAL CHILD ENTRY POLICY (PROMINENT HIGHLIGHT BANNER) */}
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500/15 via-rose-500/10 to-purple-600/10 border-2 border-amber-500/40 p-6 sm:p-7 mb-8 shadow-2xl shadow-amber-500/10 backdrop-blur-xl">
+            <div className="absolute top-0 right-0 w-44 h-44 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
+            
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/20">
+                <Baby size={26} className="text-amber-300" />
+              </div>
+              <div className="flex-1">
+                <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    ✓ Official Policy
+                  </span>
+                  <span className="text-xs font-bold text-amber-300 uppercase tracking-wide">
+                    Child Entry Guidelines
+                  </span>
+                </div>
+                <h3 className="text-base sm:text-lg font-black text-white leading-snug">
+                  Kids Aged 5 & Below Enter for Free!
+                </h3>
+                <div className="mt-3 space-y-2 text-xs sm:text-sm text-gray-200 leading-relaxed">
+                  <div className="flex items-start gap-2 bg-black/30 border border-amber-500/20 rounded-xl p-3">
+                    <span className="text-emerald-400 font-bold shrink-0">👶</span>
+                    <p>
+                      <strong className="text-amber-200">Children aged 5 and below:</strong> Enjoy <span className="text-emerald-400 font-black">FREE ENTRY</span> to the event. No separate pass is required.
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2 bg-black/30 border border-amber-500/20 rounded-xl p-3">
+                    <span className="text-amber-400 font-bold shrink-0">🎫</span>
+                    <p>
+                      <strong className="text-amber-200">Children above 5 years:</strong> Must possess a valid ticket purchased at the <span className="text-amber-300 font-bold">standard mentioned ticket price</span>.
+                    </p>
+                  </div>
+                </div>
+                <p className="text-[11px] text-gray-400 mt-2.5 italic">
+                  * Note: Children must be accompanied by an adult. Age verification ID (school ID or birth certificate) may be requested at entry gates if required.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* ANSWERED QUERIES LIST */}
+          <div className="space-y-4 mb-8">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-gray-300 flex items-center gap-2">
+              <Sparkles size={14} className="text-amber-400" />
+              <span>Organizer Verified Answers ({queries.length})</span>
+            </h3>
+
+            {loadingQueries ? (
+              <div className="p-8 text-center bg-white/[0.02] border border-white/10 rounded-2xl">
+                <div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                <p className="text-xs text-gray-400">Loading queries...</p>
+              </div>
+            ) : queries.length === 0 ? (
+              <div className="p-6 text-center bg-white/[0.02] border border-white/10 rounded-2xl text-gray-400 text-xs sm:text-sm">
+                No answered queries yet. Be the first to ask the organizers below!
+              </div>
+            ) : (
+              queries.map((q) => (
+                <div
+                  key={q.query_id}
+                  className="rounded-2xl bg-white/[0.025] border border-white/10 p-5 sm:p-6 backdrop-blur-xl shadow-lg hover:border-amber-500/30 transition space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2.5">
+                      <span className="text-amber-400 font-black text-base shrink-0 mt-0.5">Q.</span>
+                      <div>
+                        <h4 className="text-white font-bold text-sm sm:text-base leading-snug">
+                          {q.question}
+                        </h4>
+                        <p className="text-[11px] text-gray-400 mt-1 flex items-center gap-2">
+                          <span>Asked by <strong className="text-gray-300">{q.user_name}</strong></span>
+                          <span>•</span>
+                          <span>{new Date(q.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                        </p>
+                      </div>
+                    </div>
+                    {q.is_pinned && (
+                      <span className="shrink-0 text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                        📌 Pinned
+                      </span>
+                    )}
+                  </div>
+
+                  {q.answer && (
+                    <div className="ml-5 p-3.5 sm:p-4 rounded-xl bg-amber-500/[0.07] border border-amber-500/20 space-y-1">
+                      <div className="flex items-center gap-1.5 text-amber-300 text-[11px] font-black uppercase tracking-wider">
+                        <CheckCircle2 size={13} className="text-amber-400" />
+                        <span>Organizer Response</span>
+                        {q.answered_by && <span className="text-gray-400 font-normal">({q.answered_by})</span>}
+                      </div>
+                      <p className="text-xs sm:text-sm text-gray-200 leading-relaxed font-medium">
+                        {q.answer}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* ASK YOUR QUERY FORM */}
+          <div className="rounded-3xl bg-zinc-900/90 border border-zinc-800 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center text-black font-black">
+                <HelpCircle size={20} className="text-black" />
+              </div>
+              <div>
+                <h3 className="text-lg sm:text-xl font-black text-white">Have a Query? Ask the Organizers</h3>
+                <p className="text-gray-400 text-xs">
+                  We review queries regularly and post official answers here.
+                </p>
+              </div>
+            </div>
+
+            {querySuccessMsg && (
+              <div className="mb-4 p-4 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs sm:text-sm flex items-start gap-2">
+                <CheckCircle2 size={18} className="shrink-0 mt-0.5 text-emerald-400" />
+                <span>{querySuccessMsg}</span>
+              </div>
+            )}
+
+            {queryErrorMsg && (
+              <div className="mb-4 p-4 rounded-xl bg-red-500/20 border border-red-500/40 text-red-300 text-xs sm:text-sm flex items-start gap-2">
+                <AlertCircle size={18} className="shrink-0 mt-0.5 text-red-400" />
+                <span>{queryErrorMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleQuerySubmit} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-1.5">
+                    Your Name <span className="text-rose-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                    <input
+                      type="text"
+                      placeholder="e.g. Rahul Sharma"
+                      value={queryName}
+                      onChange={(e) => setQueryName(e.target.value)}
+                      required
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/60 border border-zinc-700 text-white placeholder-gray-500 text-xs sm:text-sm focus:outline-none focus:border-amber-400 transition"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-1.5">
+                    Email or WhatsApp Phone <span className="text-gray-500 font-normal lowercase">(optional)</span>
+                  </label>
+                  <div className="relative">
+                    <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                    <input
+                      type="text"
+                      placeholder="e.g. rahul@gmail.com or 9876543210"
+                      value={queryContact}
+                      onChange={(e) => setQueryContact(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/60 border border-zinc-700 text-white placeholder-gray-500 text-xs sm:text-sm focus:outline-none focus:border-amber-400 transition"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-1.5">
+                  Your Question / Query <span className="text-rose-400">*</span>
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="e.g. Will Dandiya sticks be available at the venue? What time does entry begin?"
+                  value={queryQuestion}
+                  onChange={(e) => setQueryQuestion(e.target.value)}
+                  required
+                  className="w-full p-3.5 rounded-xl bg-black/60 border border-zinc-700 text-white placeholder-gray-500 text-xs sm:text-sm focus:outline-none focus:border-amber-400 transition resize-none"
+                />
+              </div>
+
+              <motion.button
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                type="submit"
+                disabled={submittingQuery}
+                className="w-full sm:w-auto bg-gradient-to-r from-amber-500 via-rose-500 to-amber-500 hover:from-amber-400 hover:to-rose-400 text-black font-black text-xs sm:text-sm py-3 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+              >
+                {submittingQuery ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                    <span>Submitting Query...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send size={15} />
+                    <span>Submit Query to Organizers</span>
+                  </>
+                )}
+              </motion.button>
+            </form>
+          </div>
+        </section>
 
         {/* FOOTER */}
         <footer className="border-t border-white/10 pt-8 pb-4 text-center text-gray-500 text-xs sm:text-sm">
