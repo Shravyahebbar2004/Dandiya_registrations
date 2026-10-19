@@ -94,11 +94,11 @@ export default function AdminPage({
       case 'flash_sale':
         return '⚡ Flash Sale';
       case 'slab1':
-        return '🐦 Early Bird (Slab 1)';
+        return '🐦 Early Bird';
       case 'slab2':
-        return '🎫 Normal (Slab 2)';
+        return '🎫 Slab 1';
       case 'slab3':
-        return '🔥 Slab 3';
+        return '🔥 Last Chance';
       default:
         return 'Standard';
     }
@@ -192,10 +192,10 @@ export default function AdminPage({
       { name: 'Sheet 3 - Accepted (Approved)', data: users.filter((u) => u.payment_status === 'approved') },
       { name: 'Sheet 4 - Pending Approval', data: users.filter((u) => u.payment_status === 'pending') },
       { name: 'Sheet 5 - Incomplete Drafts', data: users.filter((u) => u.payment_status === 'draft') },
-      { name: 'Sheet 6 - Flash Sale Timeline', data: sortedAsc.filter((u) => (userSlabMap.get(u.registration_id) || (Number(u.registration_id) <= 64 ? 'flash_sale' : 'slab1')) === 'flash_sale') },
-      { name: 'Sheet 7 - Early Bird (Slab 1)', data: sortedAsc.filter((u) => (userSlabMap.get(u.registration_id) || (Number(u.registration_id) <= 64 ? 'flash_sale' : 'slab1')) === 'slab1') },
-      { name: 'Sheet 8 - Normal (Slab 2)', data: sortedAsc.filter((u) => userSlabMap.get(u.registration_id) === 'slab2') },
-      { name: 'Sheet 9 - Slab 3 Timeline', data: sortedAsc.filter((u) => userSlabMap.get(u.registration_id) === 'slab3') }
+      { name: 'Sheet 6 - Flash Sale Timeline', data: sortedAsc.filter((u) => (userSlabMap.get(u.registration_id) || (Number(u.registration_id) <= 64 ? 'flash_sale' : Number(u.registration_id) <= 112 ? 'slab1' : 'slab2')) === 'flash_sale') },
+      { name: 'Sheet 7 - Early Bird Passes', data: sortedAsc.filter((u) => (userSlabMap.get(u.registration_id) || (Number(u.registration_id) <= 64 ? 'flash_sale' : Number(u.registration_id) <= 112 ? 'slab1' : 'slab2')) === 'slab1') },
+      { name: 'Sheet 8 - Slab 1 Registrations', data: sortedAsc.filter((u) => (userSlabMap.get(u.registration_id) || (Number(u.registration_id) <= 64 ? 'flash_sale' : Number(u.registration_id) <= 112 ? 'slab1' : 'slab2')) === 'slab2') },
+      { name: 'Sheet 9 - Last Chance Registrations', data: sortedAsc.filter((u) => userSlabMap.get(u.registration_id) === 'slab3') }
     ];
 
     let workbookXml = `<?xml version="1.0"?>
@@ -256,7 +256,7 @@ export default function AdminPage({
     };
 
     const rows = filteredUsers.map((user) => {
-      const slabKey = userSlabMap.get(user.registration_id) || (Number(user.registration_id) <= 64 ? 'flash_sale' : 'slab1');
+      const slabKey = userSlabMap.get(user.registration_id) || (Number(user.registration_id) <= 64 ? 'flash_sale' : Number(user.registration_id) <= 112 ? 'slab1' : 'slab2');
       return [
         user.full_name,
         user.email,
@@ -537,7 +537,7 @@ export default function AdminPage({
             .then((res) => {
               if (res.data?.event) setEvent(res.data.event);
             })
-            .catch(() => {});
+            .catch(() => { });
         }
 
         const rawRegistrations: User[] = response.data.registrations || [];
@@ -844,7 +844,7 @@ export default function AdminPage({
   const isMarathonUser = (user: User) => {
     const t = user.ticket_type?.toLowerCase() || '';
     return t.includes('5k') || t.includes('3k') || t.includes('10k') || t.includes('marathon') ||
-           Boolean(user.emergency_contact_name && user.blood_group);
+      Boolean(user.emergency_contact_name && user.blood_group);
   };
 
   const sortedAscUsers = useMemo(() => {
@@ -868,7 +868,7 @@ export default function AdminPage({
         if (cfg.flash_sale?.threshold) flashThreshold = Number(cfg.flash_sale.threshold) || 50;
         if (cfg.slab1?.threshold) slab1Threshold = Number(cfg.slab1.threshold) || 200;
         if (cfg.slab2?.threshold) slab2Threshold = Number(cfg.slab2.threshold) || 300;
-      } catch (e) {}
+      } catch (e) { }
     }
 
     // Flash sale officially closed timestamp: Oct 7 2026 18:05:43 UTC
@@ -893,11 +893,11 @@ export default function AdminPage({
         slab = 'flash_sale';
       } else if (regId <= 64 || (createdAt > 0 && createdAt < flashSaleClosedAt)) {
         slab = 'flash_sale';
+      } else if (regId <= 112) {
+        slab = 'slab1';
       } else {
         const ticketPos = cumulativeTickets + (isCounted ? entries : 0);
-        if (ticketPos <= slab1Threshold) {
-          slab = 'slab1';
-        } else if (ticketPos <= slab2Threshold) {
+        if (ticketPos <= slab2Threshold) {
           slab = 'slab2';
         } else {
           slab = 'slab3';
@@ -983,7 +983,7 @@ export default function AdminPage({
         }
 
         // Slab filter dropdown
-        const userSlab = userSlabMap.get(user.registration_id) || (Number(user.registration_id) <= 64 ? 'flash_sale' : 'slab1');
+        const userSlab = userSlabMap.get(user.registration_id) || (Number(user.registration_id) <= 64 ? 'flash_sale' : Number(user.registration_id) <= 112 ? 'slab1' : 'slab2');
         if (slabFilter === 'flash_sale' && userSlab !== 'flash_sale') return false;
         if (slabFilter === 'slab1' && userSlab !== 'slab1') return false;
         if (slabFilter === 'slab2' && userSlab !== 'slab2') return false;
@@ -1221,9 +1221,9 @@ export default function AdminPage({
               >
                 <option value="all">🎟️ All Pricing Slabs</option>
                 <option value="flash_sale">⚡ Flash Sale ({countFlashSale})</option>
-                <option value="slab1">🐦 Early Bird / Slab 1 ({countSlab1})</option>
-                <option value="slab2">🎫 Normal / Slab 2 ({countSlab2})</option>
-                <option value="slab3">🔥 Slab 3 ({countSlab3})</option>
+                <option value="slab1">🐦 Early Bird ({countSlab1})</option>
+                <option value="slab2">🎫 Slab 1 ({countSlab2})</option>
+                <option value="slab3">🔥 Last Chance ({countSlab3})</option>
               </select>
               <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-cyan-400 pointer-events-none" size={16} />
             </div>
@@ -1291,13 +1291,12 @@ export default function AdminPage({
                             </span>
                           )}
                           <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                              u.payment_status === 'approved'
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${u.payment_status === 'approved'
                                 ? 'bg-emerald-500/20 text-emerald-400'
                                 : u.payment_status === 'pending'
-                                ? 'bg-amber-500/20 text-amber-400'
-                                : 'bg-red-500/20 text-red-400'
-                            }`}
+                                  ? 'bg-amber-500/20 text-amber-400'
+                                  : 'bg-red-500/20 text-red-400'
+                              }`}
                           >
                             {u.payment_status}
                           </span>
@@ -1374,7 +1373,7 @@ export default function AdminPage({
                             {user.ticket_type}
                           </span>
                           {(() => {
-                            const slab = userSlabMap.get(user.registration_id) || (Number(user.registration_id) <= 64 ? 'flash_sale' : 'slab1');
+                            const slab = userSlabMap.get(user.registration_id) || (Number(user.registration_id) <= 64 ? 'flash_sale' : Number(user.registration_id) <= 112 ? 'slab1' : 'slab2');
                             if (slab === 'flash_sale') {
                               return (
                                 <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded text-[10px] font-black tracking-wide flex items-center gap-1 shadow-sm">
@@ -1392,14 +1391,14 @@ export default function AdminPage({
                             if (slab === 'slab2') {
                               return (
                                 <span className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 px-2 py-0.5 rounded text-[10px] font-black tracking-wide flex items-center gap-1 shadow-sm">
-                                  🎫 Normal (Slab 2)
+                                  🎫 Slab 1
                                 </span>
                               );
                             }
                             if (slab === 'slab3') {
                               return (
                                 <span className="bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2 py-0.5 rounded text-[10px] font-black tracking-wide flex items-center gap-1 shadow-sm">
-                                  🔥 Slab 3
+                                  🔥 Last Chance
                                 </span>
                               );
                             }
@@ -1647,11 +1646,10 @@ export default function AdminPage({
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <span
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase border ${
-                              q.status === 'ANSWERED'
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase border ${q.status === 'ANSWERED'
                                 ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
                                 : 'bg-rose-500/10 text-rose-300 border-rose-500/30 animate-pulse'
-                            }`}
+                              }`}
                           >
                             {q.status === 'ANSWERED' ? '✓ Answered' : '⏳ Pending Reply'}
                           </span>

@@ -360,12 +360,12 @@ export default function RegisterPage({
         } else if (flash.enabled !== false && totalRegs < flashLimit && !flashDeadlinePassed) {
           slabKey = 'flash_sale';
           slabName = "⚡ Flash Offer";
-        } else if (totalRegs < s1Limit && !s1DeadlinePassed) {
+        } else if (s1.enabled !== false && totalRegs < s1Limit && !s1DeadlinePassed) {
           slabKey = 'slab1';
-          slabName = "🐦 Early Bird Offer";
-        } else if (totalRegs < s2Limit && !s2DeadlinePassed) {
+          slabName = s1.name || "🐦 Early Bird Offer";
+        } else if (s2.enabled !== false && totalRegs < s2Limit && !s2DeadlinePassed) {
           slabKey = 'slab2';
-          slabName = "🎫 Normal Slab";
+          slabName = s2.name || "🎫 Slab 1";
         } else if (s3.enabled && totalRegs < s3Limit && !s3DeadlinePassed) {
           slabKey = 'slab3';
           slabName = s3.name || "🔥 Last Chance Slab";
@@ -396,10 +396,10 @@ export default function RegisterPage({
       }
 
       if (!registrationClosed) {
-        // Transition to Normal Slab after 12:00 AM IST or after 150 registrations
+        // Transition to Slab 1 after 12:00 AM IST or after 150 registrations
         if (now >= earlyBirdCutoff || totalRegs >= 150) {
           slabKey = 'slab2';
-          slabName = "Normal Slab";
+          slabName = "Slab 1";
         } else {
           slabKey = 'slab1';
           slabName = "Early Bird Offer";
@@ -982,10 +982,10 @@ export default function RegisterPage({
             <div className="bg-gradient-to-r from-blue-500/20 via-indigo-500/20 to-violet-500/20 border-2 border-blue-500/50 rounded-3xl p-6 mb-8 text-left shadow-[0_0_35px_rgba(59,130,246,0.2)]">
               <div>
                 <span className="px-3 py-1 bg-blue-500 text-white font-black text-xs uppercase tracking-wider rounded-full mb-2 inline-block">
-                  🎫 Normal Slab Active
+                  🎫 Slab 1 Active
                 </span>
                 <h2 className="text-2xl sm:text-3xl font-black text-white mt-1">
-                  General Booking Phase
+                  Slab 1 Passes Available
                 </h2>
                 <p className="text-blue-200/90 text-sm mt-1">
                   Standard passes with unlocked group volume discounts. Book your passes below!

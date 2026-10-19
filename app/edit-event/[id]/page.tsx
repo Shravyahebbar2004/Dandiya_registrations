@@ -336,7 +336,7 @@ export default function EditEventPage() {
                     deadline: formatDateTimeLocal(parsed.slab1?.deadline) || ''
                   },
                   slab2: {
-                    name: parsed.slab2?.name || 'Normal Slab',
+                    name: parsed.slab2?.name || 'Slab 1',
                     threshold: String(parsed.slab2?.threshold ?? '300'),
                     price_1_4: String(parsed.slab2?.price_1_4 ?? '399'),
                     price_5_9: String(parsed.slab2?.price_5_9 ?? '359'),
