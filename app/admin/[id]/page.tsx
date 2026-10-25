@@ -639,6 +639,9 @@ export default function AdminPage({
   // ====================================
 
   const rejectRegistration = async (id: number) => {
+    if (!window.confirm('Are you sure you want to REJECT this registration? It will be moved to the Rejected section.')) {
+      return;
+    }
     try {
       const adminToken = sessionStorage.getItem('admin_token') || localStorage.getItem('admin_token');
       setRejectingId(id);
@@ -647,7 +650,7 @@ export default function AdminPage({
         {},
         {
           headers: {
-            Authorization: `Bearer ${adminToken}`
+            Authorization: `Bearer ${adminToken || ''}`
           }
         }
       );
@@ -656,14 +659,14 @@ export default function AdminPage({
       fetchUsers();
       fetchAnalytics();
     } catch (error: any) {
-      console.log(error);
+      console.log('Reject Registration Error:', error);
       if (error.response?.status === 401) {
         localStorage.removeItem('admin_token');
         sessionStorage.removeItem('admin_token');
         setIsAuthorized(false);
         if (typeof window !== 'undefined') window.location.href = '/admin-login';
       } else {
-        alert('Reject Failed');
+        alert(error.response?.data?.message || 'Reject Failed: ' + (error.message || 'Server error'));
       }
     } finally {
       setRejectingId(null);
