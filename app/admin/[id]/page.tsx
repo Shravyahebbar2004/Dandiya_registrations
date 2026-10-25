@@ -427,6 +427,7 @@ export default function AdminPage({
   const [approvingId, setApprovingId] = useState<number | null>(null);
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [recoveringId, setRecoveringId] = useState<number | null>(null);
+  const [settingPendingId, setSettingPendingId] = useState<number | null>(null);
 
   const [analytics, setAnalytics] =
     useState<Analytics | null>(null);
@@ -702,6 +703,42 @@ export default function AdminPage({
       }
     } finally {
       setRecoveringId(null);
+    }
+  };
+
+  // ====================================
+  // SET PENDING REGISTRATION
+  // ====================================
+
+  const setPendingRegistration = async (id: number) => {
+    try {
+      const adminToken = sessionStorage.getItem('admin_token') || localStorage.getItem('admin_token');
+      setSettingPendingId(id);
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/set-pending-registration/${id}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${adminToken}`
+          }
+        }
+      );
+
+      alert('Registration Moved to Pending Approval');
+      fetchUsers();
+      fetchAnalytics();
+    } catch (error: any) {
+      console.log(error);
+      if (error.response?.status === 401) {
+        localStorage.removeItem('admin_token');
+        sessionStorage.removeItem('admin_token');
+        setIsAuthorized(false);
+        if (typeof window !== 'undefined') window.location.href = '/admin-login';
+      } else {
+        alert('Failed to set registration to pending');
+      }
+    } finally {
+      setSettingPendingId(null);
     }
   };
 
@@ -1519,12 +1556,12 @@ export default function AdminPage({
 
                       {/* ACTION */}
                       <td className="p-4 text-center whitespace-nowrap">
-                        {user.payment_status === 'draft' ? (
+                        {user.payment_status === 'pending' || user.payment_status === 'draft' ? (
                           <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => approvePayment(user.registration_id)}
                               disabled={approvingId === user.registration_id}
-                              className={`bg-emerald-500 hover:bg-emerald-400 text-black px-3 py-1.5 rounded-lg font-bold text-xs transition shadow ${approvingId === user.registration_id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              className={`bg-emerald-500 hover:bg-emerald-400 text-black px-3.5 py-1.5 rounded-lg font-bold text-xs transition shadow ${approvingId === user.registration_id ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                               {approvingId === user.registration_id ? 'Approving...' : 'Approve'}
                             </button>
@@ -1546,14 +1583,27 @@ export default function AdminPage({
                             <RotateCcw size={13} />
                             {recoveringId === user.registration_id ? 'Recovering...' : 'Recover'}
                           </button>
-                        ) : user.payment_status !== 'approved' ? (
-                          <button
-                            onClick={() => approvePayment(user.registration_id)}
-                            disabled={approvingId === user.registration_id}
-                            className={`bg-emerald-500 hover:bg-emerald-400 text-black px-4 py-1.5 rounded-lg font-bold text-xs transition shadow ${approvingId === user.registration_id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          >
-                            {approvingId === user.registration_id ? 'Approving...' : 'Approve'}
-                          </button>
+                        ) : user.payment_status === 'approved' ? (
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => approvePayment(user.registration_id)}
+                              disabled={approvingId === user.registration_id}
+                              title="Re-send pass with QR code via email"
+                              className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 px-2.5 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1 shadow-sm"
+                            >
+                              <Mail size={12} />
+                              <span>{approvingId === user.registration_id ? 'Sending...' : 'Resend Pass'}</span>
+                            </button>
+                            <button
+                              onClick={() => setPendingRegistration(user.registration_id)}
+                              disabled={settingPendingId === user.registration_id}
+                              title="Reset status back to Pending"
+                              className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-2 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1 shadow-sm"
+                            >
+                              <Clock size={12} />
+                              <span>{settingPendingId === user.registration_id ? '...' : 'Pending'}</span>
+                            </button>
+                          </div>
                         ) : null}
                       </td>
                     </tr>
