@@ -112,7 +112,24 @@ export default function RegisterPage({
       const draftData = new FormData();
       draftData.append('email', targetEmail);
       draftData.append('full_name', formData.full_name.trim() || 'Registrant');
+      const cleanPhone = parsePhone(formData.phone_number) || formData.phone_number.trim();
+      if (cleanPhone) draftData.append('phone_number', cleanPhone);
+      if (formData.club_affiliation) draftData.append('club_affiliation', formData.club_affiliation);
+      draftData.append('total_amount', totalAmount.toString());
+      draftData.append('allowed_entries', allowedEntries.toString());
       draftData.append('event_id', id);
+
+      const tickets: string[] = [];
+      const dandiyaCfg = getDandiyaConfig(event);
+      if (dandiyaCfg) {
+        const qty = Math.max(1, quantities.dandiya || 1);
+        if (activeSlabKey === 'mega_flash') {
+          tickets.push(`Mega Flash Pass (${qty} ${qty > 1 ? 'Entries' : 'Entry'})`);
+        } else {
+          tickets.push(`Dandiya Pass (${qty} ${qty > 1 ? 'Entries' : 'Entry'})`);
+        }
+      }
+      draftData.append('tickets', JSON.stringify(tickets));
 
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL}/api/send-otp`,
@@ -401,6 +418,37 @@ export default function RegisterPage({
       return () => clearTimeout(timer);
     }
   }, [submitted, event, id]);
+
+  // REAL-TIME AUTO-SAVE FOR INCOMPLETE DRAFTS WITH PHONE NUMBER & EMAIL
+  useEffect(() => {
+    const cleanEmail = formData.email?.trim().toLowerCase();
+    const cleanPhone = parsePhone(formData.phone_number);
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) return;
+    if (!cleanPhone || cleanPhone.length < 10) return;
+    if (isOtpVerified || submitted) return;
+
+    const autoSaveTimer = setTimeout(async () => {
+      try {
+        const qty = Math.max(1, quantities.dandiya || 1);
+        const ticketType = activeSlabKey === 'mega_flash' ? `Mega Flash Pass (${qty} Entries)` : `Dandiya Pass (${qty} Entries)`;
+
+        await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/save-draft`, {
+          email: cleanEmail,
+          phone_number: cleanPhone,
+          full_name: formData.full_name?.trim() || 'Incomplete Registration',
+          event_id: id,
+          total_amount: totalAmount,
+          allowed_entries: allowedEntries,
+          club_affiliation: formData.club_affiliation || '',
+          ticket_type: ticketType
+        });
+      } catch (e) {
+        // Silent background save
+      }
+    }, 1500);
+
+    return () => clearTimeout(autoSaveTimer);
+  }, [formData.email, formData.phone_number, formData.full_name, formData.club_affiliation, totalAmount, allowedEntries, activeSlabKey, id, isOtpVerified, submitted]);
 
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [otp, setOtp] = useState('');

@@ -1229,9 +1229,20 @@ export default function AdminPage({
           </div>
         </div>
 
-        <div className="bg-zinc-900/80 border border-orange-500/20 rounded-2xl p-4 sm:p-5 shadow-lg flex items-center justify-between col-span-2 sm:col-span-1">
+        <div
+          onClick={() => setStatusFilter(statusFilter === 'draft' ? 'all' : 'draft')}
+          className={`bg-zinc-900/80 border rounded-2xl p-4 sm:p-5 shadow-lg flex items-center justify-between col-span-2 sm:col-span-1 cursor-pointer transition ${
+            statusFilter === 'draft'
+              ? 'border-orange-500 ring-2 ring-orange-500/40 bg-orange-950/20'
+              : 'border-orange-500/20 hover:border-orange-500/50'
+          }`}
+          title="Click to view Incomplete Drafts"
+        >
           <div>
-            <p className="text-xs uppercase tracking-wider font-bold text-orange-400">Incomplete Drafts</p>
+            <p className="text-xs uppercase tracking-wider font-bold text-orange-400 flex items-center gap-1.5">
+              <span>Incomplete Drafts</span>
+              {statusFilter === 'draft' && <span className="text-[10px] bg-orange-500 text-black px-1.5 py-0.2 rounded font-black">ACTIVE</span>}
+            </p>
             <p className="text-2xl sm:text-3xl font-black text-orange-400 mt-1">{draftUsers}</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400">
@@ -1491,8 +1502,41 @@ export default function AdminPage({
 
                       {/* CONTACT */}
                       <td className="p-4 whitespace-nowrap">
-                        <p className="text-gray-200 text-xs font-semibold">{user.email}</p>
-                        <p className="text-gray-400 text-xs">{user.phone_number}</p>
+                        <div className="flex flex-col gap-1 items-start">
+                          <a
+                            href={`mailto:${user.email}`}
+                            className="text-gray-200 text-xs font-semibold hover:text-amber-300 transition flex items-center gap-1"
+                            title="Send email"
+                          >
+                            <span>✉️</span>
+                            <span>{user.email}</span>
+                          </a>
+
+                          {user.phone_number ? (
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <a
+                                href={`tel:${user.phone_number}`}
+                                className="text-cyan-400 hover:text-cyan-300 text-xs font-mono font-bold flex items-center gap-1"
+                                title="Click to call"
+                              >
+                                <span>📞</span>
+                                <span>{user.phone_number}</span>
+                              </a>
+                              <a
+                                href={`https://wa.me/91${user.phone_number.replace(/\D/g, '').slice(-10)}?text=${encodeURIComponent(`Hi ${user.full_name}, we noticed your registration was incomplete for Dandiya Night 12.0. Need any assistance completing your passes?`)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-0.5 transition shadow-sm"
+                                title="Chat on WhatsApp"
+                              >
+                                <span>💬</span>
+                                <span>WA</span>
+                              </a>
+                            </div>
+                          ) : (
+                            <span className="text-gray-500 text-[10px] italic">No phone captured</span>
+                          )}
+                        </div>
                       </td>
 
                       {/* TICKET PASS */}
