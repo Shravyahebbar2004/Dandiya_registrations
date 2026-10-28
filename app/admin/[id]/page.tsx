@@ -83,6 +83,7 @@ export default function AdminPage({
 
   type StatusFilterType =
     | 'all'
+    | 'mega_sale'
     | 'entered'
     | 'approved'
     | 'pending'
@@ -930,15 +931,18 @@ export default function AdminPage({
       const entries = Number(u.allowed_entries) || 1;
       const isCounted = u.payment_status !== 'rejected' && u.payment_status !== 'draft';
 
+      const unitPrice = u.total_amount && entries > 0 ? Math.round(Number(u.total_amount) / entries) : 0;
       const tLower = (u.ticket_type || '').toLowerCase();
       const cLower = (u.coupon_code || '').toLowerCase();
 
       let slab: 'mega_flash' | 'flash_sale' | 'slab1' | 'slab2' | 'slab3' = 'slab1';
 
-      const isMegaTime = createdAt >= megaStart && createdAt < megaEnd;
+      const isToday = createdAt >= new Date('2026-10-27T18:30:00Z').getTime(); // Oct 28 IST
+      const isMegaTime = (createdAt >= megaStart && createdAt <= megaEnd) || (isToday && regId >= 169 && createdAt <= megaEnd);
       const isMegaTicket = tLower.includes('mega flash') || tLower.includes('mega') || cLower.includes('mega');
+      const isMegaPrice = unitPrice === 339 && regId >= 169;
 
-      if (isMegaTicket || (isMegaTime && regId > 164)) {
+      if (isMegaTicket || isMegaPrice || (isMegaTime && regId >= 169)) {
         slab = 'mega_flash';
       } else if (tLower.includes('early bird') || cLower.includes('early')) {
         slab = 'slab1';
@@ -1040,6 +1044,9 @@ export default function AdminPage({
         // Status filter dropdown
         if (statusFilter === 'all') {
           if (user.payment_status === 'rejected') return false;
+        } else if (statusFilter === 'mega_sale') {
+          const userSlab = userSlabMap.get(user.registration_id);
+          if (userSlab !== 'mega_flash') return false;
         } else if (statusFilter === 'entered') {
           const hasEntered = Number(user.used_entries) > 0 || (user.checked_in_names && (Array.isArray(user.checked_in_names) ? user.checked_in_names.length > 0 : String(user.checked_in_names) !== '[]'));
           if (!hasEntered) return false;
@@ -1188,7 +1195,7 @@ export default function AdminPage({
       </div>
 
       {/* STATS CARDS */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-lg flex items-center justify-between">
           <div>
             <p className="text-xs uppercase tracking-wider font-bold text-gray-400">Total Registrations</p>
@@ -1196,6 +1203,31 @@ export default function AdminPage({
           </div>
           <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
             📊
+          </div>
+        </div>
+
+        <div
+          onClick={() => {
+            setStatusFilter(statusFilter === 'mega_sale' ? 'all' : 'mega_sale');
+            setSlabFilter('all');
+          }}
+          className={`bg-zinc-900/80 border rounded-2xl p-4 sm:p-5 shadow-lg flex items-center justify-between cursor-pointer transition ${
+            statusFilter === 'mega_sale'
+              ? 'border-amber-400 ring-2 ring-amber-400/40 bg-amber-950/30'
+              : 'border-amber-500/30 hover:border-amber-400/60 bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-rose-500/10'
+          }`}
+          title="Click to view Mega Sale Registrations"
+        >
+          <div>
+            <p className="text-xs uppercase tracking-wider font-bold text-amber-300 flex items-center gap-1.5">
+              <span>⚡ Mega Sale</span>
+              {statusFilter === 'mega_sale' && <span className="text-[10px] bg-amber-400 text-black px-1.5 py-0.2 rounded font-black">ACTIVE</span>}
+            </p>
+            <p className="text-2xl sm:text-3xl font-black text-amber-300 mt-1">{countMegaFlash}</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">{totalMegaFlashEntries} passes (₹339)</p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center text-black font-black text-lg shadow-lg shadow-amber-500/20">
+            ⚡
           </div>
         </div>
 
@@ -1231,7 +1263,7 @@ export default function AdminPage({
 
         <div
           onClick={() => setStatusFilter(statusFilter === 'draft' ? 'all' : 'draft')}
-          className={`bg-zinc-900/80 border rounded-2xl p-4 sm:p-5 shadow-lg flex items-center justify-between col-span-2 sm:col-span-1 cursor-pointer transition ${
+          className={`bg-zinc-900/80 border rounded-2xl p-4 sm:p-5 shadow-lg flex items-center justify-between cursor-pointer transition ${
             statusFilter === 'draft'
               ? 'border-orange-500 ring-2 ring-orange-500/40 bg-orange-950/20'
               : 'border-orange-500/20 hover:border-orange-500/50'
@@ -1292,16 +1324,17 @@ export default function AdminPage({
             </div>
             <button
               onClick={() => {
-                setSlabFilter(slabFilter === 'mega_flash' ? 'all' : 'mega_flash');
+                setStatusFilter(statusFilter === 'mega_sale' ? 'all' : 'mega_sale');
+                setSlabFilter('all');
               }}
               className={`px-4 py-2.5 rounded-xl font-bold text-xs transition shadow-lg flex items-center gap-2 cursor-pointer ${
-                slabFilter === 'mega_flash'
-                  ? 'bg-amber-400 text-black ring-2 ring-amber-300'
+                statusFilter === 'mega_sale' || slabFilter === 'mega_flash'
+                  ? 'bg-amber-400 text-black ring-2 ring-amber-300 font-black'
                   : 'bg-zinc-800 hover:bg-zinc-700 text-amber-300 border border-amber-500/40'
               }`}
             >
               <Filter size={14} />
-              <span>{slabFilter === 'mega_flash' ? 'Showing Mega Flash' : 'Filter Mega Flash'}</span>
+              <span>{statusFilter === 'mega_sale' || slabFilter === 'mega_flash' ? 'Showing Mega Sale' : 'View Mega Sale Attendees'}</span>
             </button>
           </div>
         </div>
@@ -1339,6 +1372,7 @@ export default function AdminPage({
                 className="w-full p-2.5 rounded-xl bg-zinc-950/80 border border-zinc-800 text-amber-300 font-bold text-xs sm:text-sm focus:outline-none focus:border-amber-400 appearance-none cursor-pointer pr-8"
               >
                 <option value="all">📋 All Active Registrations ({totalUsers})</option>
+                <option value="mega_sale">⚡ Mega Sale Registrations ({countMegaFlash})</option>
                 <option value="entered">🚪 Checked-In & Gate Entries ({countEntered})</option>
                 <option value="approved">✓ Approved / Accepted ({approvedUsers})</option>
                 <option value="pending">⏳ Pending Approval ({pendingUsers})</option>
@@ -1370,6 +1404,136 @@ export default function AdminPage({
           </div>
         </div>
       </div>
+
+      {/* QUICK STATUS & SECTION NAVIGATION TABS */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-6 scrollbar-thin">
+        <button
+          onClick={() => { setStatusFilter('all'); setSlabFilter('all'); }}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 cursor-pointer ${
+            statusFilter === 'all' && slabFilter === 'all'
+              ? 'bg-white text-black shadow-lg font-black'
+              : 'bg-zinc-900 hover:bg-zinc-800 text-gray-300 border border-zinc-800'
+          }`}
+        >
+          <span>📋 All Active</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-zinc-700/50">{totalUsers}</span>
+        </button>
+
+        <button
+          onClick={() => { setStatusFilter('mega_sale'); setSlabFilter('all'); }}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 cursor-pointer ${
+            statusFilter === 'mega_sale' || slabFilter === 'mega_flash'
+              ? 'bg-gradient-to-r from-amber-400 to-orange-400 text-black shadow-lg shadow-amber-500/20 font-black ring-2 ring-amber-300'
+              : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30'
+          }`}
+        >
+          <span>⚡ Mega Sale</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-400/30 text-amber-200 font-black">{countMegaFlash}</span>
+        </button>
+
+        <button
+          onClick={() => { setStatusFilter('approved'); setSlabFilter('all'); }}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 cursor-pointer ${
+            statusFilter === 'approved'
+              ? 'bg-emerald-500 text-black shadow-lg font-black'
+              : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+          }`}
+        >
+          <span>✓ Approved</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/30 text-emerald-200 font-bold">{approvedUsers}</span>
+        </button>
+
+        <button
+          onClick={() => { setStatusFilter('pending'); setSlabFilter('all'); }}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 cursor-pointer ${
+            statusFilter === 'pending'
+              ? 'bg-amber-400 text-black shadow-lg font-black'
+              : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30'
+          }`}
+        >
+          <span>⏳ Pending</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-500/30 text-amber-200 font-bold">{pendingUsers}</span>
+        </button>
+
+        <button
+          onClick={() => { setStatusFilter('draft'); setSlabFilter('all'); }}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 cursor-pointer ${
+            statusFilter === 'draft'
+              ? 'bg-orange-500 text-black shadow-lg font-black'
+              : 'bg-orange-500/10 hover:bg-orange-500/20 text-orange-300 border border-orange-500/30'
+          }`}
+        >
+          <span>⚠️ Drafts</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-orange-500/30 text-orange-200 font-bold">{draftUsers}</span>
+        </button>
+
+        <button
+          onClick={() => { setStatusFilter('entered'); setSlabFilter('all'); }}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 cursor-pointer ${
+            statusFilter === 'entered'
+              ? 'bg-cyan-400 text-black shadow-lg font-black'
+              : 'bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+          }`}
+        >
+          <span>🚪 Checked-In</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-cyan-500/30 text-cyan-200 font-bold">{countEntered}</span>
+        </button>
+
+        <button
+          onClick={() => { setStatusFilter('rejected'); setSlabFilter('all'); }}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 cursor-pointer ${
+            statusFilter === 'rejected'
+              ? 'bg-red-500 text-white shadow-lg font-black'
+              : 'bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30'
+          }`}
+        >
+          <span>🚫 Rejected</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-red-500/30 text-red-200 font-bold">{rejectedUsers}</span>
+        </button>
+
+        <button
+          onClick={() => { setStatusFilter('emails'); setSlabFilter('all'); }}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 cursor-pointer ${
+            statusFilter === 'emails'
+              ? 'bg-violet-400 text-black shadow-lg font-black'
+              : 'bg-violet-500/10 hover:bg-violet-500/20 text-violet-300 border border-violet-500/30'
+          }`}
+        >
+          <span>📧 Email Directory</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-violet-500/30 text-violet-200 font-bold">{uniqueEmailCount}</span>
+        </button>
+      </div>
+
+      {/* ACTIVE MEGA SALE FILTER BANNER */}
+      {statusFilter === 'mega_sale' && (
+        <div className="mb-6 bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-rose-500/20 border border-amber-500/50 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-lg backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">⚡</span>
+            <div>
+              <h3 className="text-base font-black text-amber-300">
+                Mega Sale Registrations ({countMegaFlash} Buyers • {totalMegaFlashEntries} Passes Sold)
+              </h3>
+              <p className="text-xs text-gray-300">
+                Showing all attendees who registered during the flat ₹339 Mega Sale (Today 12:00 PM – 5:00 PM IST).
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+              ✓ {countMegaFlashApproved} Approved
+            </span>
+            <span className="text-xs font-bold px-3 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40">
+              ⏳ {countMegaFlashPending} Pending
+            </span>
+            <button
+              onClick={() => setStatusFilter('all')}
+              className="text-xs font-bold px-3 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-gray-300 border border-zinc-700 transition cursor-pointer"
+            >
+              Clear Filter
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* TABLE VIEW */}
       {statusFilter === 'emails' ? (
