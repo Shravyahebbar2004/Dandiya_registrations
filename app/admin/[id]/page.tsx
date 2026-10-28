@@ -903,7 +903,7 @@ export default function AdminPage({
     let slab1Threshold = 200;
     let slab2Threshold = 300;
 
-    let megaStart = new Date('2026-10-28T11:35:00+05:30').getTime();
+    let megaStart = new Date('2026-10-28T11:59:00+05:30').getTime();
     let megaEnd = new Date('2026-10-28T17:00:00+05:30').getTime();
 
     if (event?.custom_pricing) {
@@ -1253,7 +1253,7 @@ export default function AdminPage({
                   Mega Flash Sale Live Tracker (₹339 Flat)
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-400 text-black shadow animate-pulse">
-                  Today 11:35 AM – 5:00 PM IST
+                  Today 11:59 AM – 5:00 PM IST
                 </span>
               </div>
               <p className="text-xs text-gray-300 mt-0.5">

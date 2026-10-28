@@ -224,7 +224,7 @@ export default function RegisterPage({
   const dandiyaConfig = getDandiyaConfig(event);
   const isDandiyaTiered = Boolean(dandiyaConfig);
 
-  // Mega Flash Sale real-time ticking countdown timer (11:35 AM to 5:00 PM IST)
+  // Mega Flash Sale real-time ticking countdown timer (11:59 AM to 5:00 PM IST)
   useEffect(() => {
     if (!event) return;
     const dandiyaCfg = getDandiyaConfig(event);
@@ -1027,7 +1027,7 @@ export default function RegisterPage({
             </p>
           </div>
 
-          {/* UPCOMING MEGA FLASH SALE TEASER BANNER (BEFORE 11:35 AM IST) */}
+          {/* UPCOMING MEGA FLASH SALE TEASER BANNER (BEFORE 11:59 AM IST) */}
           {megaTimer.isUpcoming && (
             <div className="relative overflow-hidden bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-rose-500/20 border-2 border-amber-400/70 rounded-3xl p-5 sm:p-6 mb-6 text-left shadow-[0_0_35px_rgba(245,158,11,0.25)] backdrop-blur-xl">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -1036,13 +1036,13 @@ export default function RegisterPage({
                     <span className="px-3 py-0.5 bg-amber-400 text-black font-black text-xs uppercase tracking-wider rounded-full flex items-center gap-1 shadow animate-pulse">
                       <span>🚀</span> UPCOMING SALE
                     </span>
-                    <span className="text-xs text-amber-300 font-bold">Today 11:35 AM to 5:00 PM IST</span>
+                    <span className="text-xs text-amber-300 font-bold">Today 11:59 AM to 5:00 PM IST</span>
                   </div>
                   <h3 className="text-xl sm:text-2xl font-black text-white">
                     ⚡ Mega Flash Sale at <span className="text-amber-400">₹339 Flat</span> Drops Soon!
                   </h3>
                   <p className="text-gray-300 text-xs sm:text-sm mt-1 max-w-lg">
-                    Flat ₹339 per ticket (Max 5 tickets per user). Sale unlocks automatically at 11:35 AM IST today and runs till 5:00 PM IST!
+                    Flat ₹339 per ticket (Max 5 tickets per user). Sale unlocks automatically at 11:59 AM IST today and runs till 5:00 PM IST!
                   </p>
                 </div>
                 <div className="bg-black/70 border border-amber-400/50 rounded-2xl px-5 py-3 text-center shrink-0 min-w-[150px] shadow-lg">
