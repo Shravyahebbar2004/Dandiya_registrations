@@ -91,6 +91,8 @@ export default function AdminPage({
     | 'emails';
   const getSlabLabel = (slab: string) => {
     switch (slab) {
+      case 'mega_flash':
+        return '⚡ Mega Flash (₹339)';
       case 'flash_sale':
         return '⚡ Flash Sale';
       case 'slab1':
@@ -192,10 +194,11 @@ export default function AdminPage({
       { name: 'Sheet 3 - Accepted (Approved)', data: users.filter((u) => u.payment_status === 'approved') },
       { name: 'Sheet 4 - Pending Approval', data: users.filter((u) => u.payment_status === 'pending') },
       { name: 'Sheet 5 - Incomplete Drafts', data: users.filter((u) => u.payment_status === 'draft') },
-      { name: 'Sheet 6 - Flash Sale Timeline', data: sortedAsc.filter((u) => (userSlabMap.get(u.registration_id) || (Number(u.registration_id) <= 64 ? 'flash_sale' : Number(u.registration_id) <= 112 ? 'slab1' : 'slab2')) === 'flash_sale') },
-      { name: 'Sheet 7 - Early Bird Passes', data: sortedAsc.filter((u) => (userSlabMap.get(u.registration_id) || (Number(u.registration_id) <= 64 ? 'flash_sale' : Number(u.registration_id) <= 112 ? 'slab1' : 'slab2')) === 'slab1') },
-      { name: 'Sheet 8 - Slab 1 Registrations', data: sortedAsc.filter((u) => (userSlabMap.get(u.registration_id) || (Number(u.registration_id) <= 64 ? 'flash_sale' : Number(u.registration_id) <= 112 ? 'slab1' : 'slab2')) === 'slab2') },
-      { name: 'Sheet 9 - Last Chance Registrations', data: sortedAsc.filter((u) => userSlabMap.get(u.registration_id) === 'slab3') }
+      { name: 'Sheet 6 - Mega Flash Sale Timeline', data: sortedAsc.filter((u) => userSlabMap.get(u.registration_id) === 'mega_flash') },
+      { name: 'Sheet 7 - Flash Sale Timeline', data: sortedAsc.filter((u) => (userSlabMap.get(u.registration_id) || (Number(u.registration_id) <= 64 ? 'flash_sale' : Number(u.registration_id) <= 112 ? 'slab1' : 'slab2')) === 'flash_sale') },
+      { name: 'Sheet 8 - Early Bird Passes', data: sortedAsc.filter((u) => (userSlabMap.get(u.registration_id) || (Number(u.registration_id) <= 64 ? 'flash_sale' : Number(u.registration_id) <= 112 ? 'slab1' : 'slab2')) === 'slab1') },
+      { name: 'Sheet 9 - Slab 1 Registrations', data: sortedAsc.filter((u) => (userSlabMap.get(u.registration_id) || (Number(u.registration_id) <= 64 ? 'flash_sale' : Number(u.registration_id) <= 112 ? 'slab1' : 'slab2')) === 'slab2') },
+      { name: 'Sheet 10 - Last Chance Registrations', data: sortedAsc.filter((u) => userSlabMap.get(u.registration_id) === 'slab3') }
     ];
 
     let workbookXml = `<?xml version="1.0"?>
@@ -894,11 +897,14 @@ export default function AdminPage({
   // Accurate Slab Mapping based on Flash Sale cutoff (Oct 7 18:05:43 UTC / Reg ID <= 64),
   // Early Bird ticket pricing/names, and cumulative entries within thresholds
   const userSlabMap = useMemo(() => {
-    const map = new Map<number, 'flash_sale' | 'slab1' | 'slab2' | 'slab3'>();
+    const map = new Map<number, 'mega_flash' | 'flash_sale' | 'slab1' | 'slab2' | 'slab3'>();
 
     let flashThreshold = 50;
     let slab1Threshold = 200;
     let slab2Threshold = 300;
+
+    let megaStart = new Date('2026-10-28T11:35:00+05:30').getTime();
+    let megaEnd = new Date('2026-10-28T17:00:00+05:30').getTime();
 
     if (event?.custom_pricing) {
       try {
@@ -908,6 +914,8 @@ export default function AdminPage({
         if (cfg.flash_sale?.threshold) flashThreshold = Number(cfg.flash_sale.threshold) || 50;
         if (cfg.slab1?.threshold) slab1Threshold = Number(cfg.slab1.threshold) || 200;
         if (cfg.slab2?.threshold) slab2Threshold = Number(cfg.slab2.threshold) || 300;
+        if (cfg.mega_flash?.start_time) megaStart = new Date(cfg.mega_flash.start_time).getTime();
+        if (cfg.mega_flash?.end_time) megaEnd = new Date(cfg.mega_flash.end_time).getTime();
       } catch (e) { }
     }
 
@@ -925,9 +933,14 @@ export default function AdminPage({
       const tLower = (u.ticket_type || '').toLowerCase();
       const cLower = (u.coupon_code || '').toLowerCase();
 
-      let slab: 'flash_sale' | 'slab1' | 'slab2' | 'slab3' = 'slab1';
+      let slab: 'mega_flash' | 'flash_sale' | 'slab1' | 'slab2' | 'slab3' = 'slab1';
 
-      if (tLower.includes('early bird') || cLower.includes('early')) {
+      const isMegaTime = createdAt >= megaStart && createdAt < megaEnd;
+      const isMegaTicket = tLower.includes('mega flash') || tLower.includes('mega') || cLower.includes('mega');
+
+      if (isMegaTicket || (isMegaTime && regId > 164)) {
+        slab = 'mega_flash';
+      } else if (tLower.includes('early bird') || cLower.includes('early')) {
         slab = 'slab1';
       } else if (cLower.includes('flash')) {
         slab = 'flash_sale';
@@ -953,6 +966,24 @@ export default function AdminPage({
 
     return map;
   }, [sortedAscUsers, event]);
+
+  const countMegaFlash = useMemo(() => {
+    return sortedAscUsers.filter((u) => userSlabMap.get(u.registration_id) === 'mega_flash').length;
+  }, [sortedAscUsers, userSlabMap]);
+
+  const countMegaFlashApproved = useMemo(() => {
+    return sortedAscUsers.filter((u) => userSlabMap.get(u.registration_id) === 'mega_flash' && u.payment_status === 'approved').length;
+  }, [sortedAscUsers, userSlabMap]);
+
+  const countMegaFlashPending = useMemo(() => {
+    return sortedAscUsers.filter((u) => userSlabMap.get(u.registration_id) === 'mega_flash' && u.payment_status === 'pending').length;
+  }, [sortedAscUsers, userSlabMap]);
+
+  const totalMegaFlashEntries = useMemo(() => {
+    return sortedAscUsers
+      .filter((u) => userSlabMap.get(u.registration_id) === 'mega_flash' && u.payment_status !== 'rejected' && u.payment_status !== 'draft')
+      .reduce((sum, u) => sum + (Number(u.allowed_entries) || 1), 0);
+  }, [sortedAscUsers, userSlabMap]);
 
   const countFlashSale = useMemo(() => {
     return sortedAscUsers.filter((u) => userSlabMap.get(u.registration_id) === 'flash_sale').length;
@@ -1024,6 +1055,7 @@ export default function AdminPage({
 
         // Slab filter dropdown
         const userSlab = userSlabMap.get(user.registration_id) || (Number(user.registration_id) <= 64 ? 'flash_sale' : Number(user.registration_id) <= 112 ? 'slab1' : 'slab2');
+        if (slabFilter === 'mega_flash' && userSlab !== 'mega_flash') return false;
         if (slabFilter === 'flash_sale' && userSlab !== 'flash_sale') return false;
         if (slabFilter === 'slab1' && userSlab !== 'slab1') return false;
         if (slabFilter === 'slab2' && userSlab !== 'slab2') return false;
@@ -1208,6 +1240,62 @@ export default function AdminPage({
         </div>
       </div>
 
+      {/* MEGA FLASH SALE LIVE MONITORING SECTION */}
+      <div className="mb-6 bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-rose-500/15 border-2 border-amber-500/40 rounded-2xl p-5 shadow-xl backdrop-blur-xl">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center text-black font-black text-2xl shadow-lg shadow-amber-500/30">
+              ⚡
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-lg sm:text-xl font-black text-amber-300">
+                  Mega Flash Sale Live Tracker (₹339 Flat)
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-400 text-black shadow animate-pulse">
+                  Today 11:35 AM – 5:00 PM IST
+                </span>
+              </div>
+              <p className="text-xs text-gray-300 mt-0.5">
+                Dedicated tracker for buyers who purchased tickets at flat ₹339 (Max 5 tickets/order).
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="bg-zinc-950/80 border border-amber-500/40 rounded-xl px-4 py-2 text-center min-w-[95px] shadow">
+              <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Buyers</p>
+              <p className="text-xl sm:text-2xl font-black text-amber-300">{countMegaFlash}</p>
+            </div>
+            <div className="bg-zinc-950/80 border border-cyan-500/40 rounded-xl px-4 py-2 text-center min-w-[95px] shadow">
+              <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Passes Sold</p>
+              <p className="text-xl sm:text-2xl font-black text-cyan-300">{totalMegaFlashEntries}</p>
+            </div>
+            <div className="bg-zinc-950/80 border border-emerald-500/40 rounded-xl px-4 py-2 text-center min-w-[95px] shadow">
+              <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Approved</p>
+              <p className="text-xl sm:text-2xl font-black text-emerald-400">{countMegaFlashApproved}</p>
+            </div>
+            <div className="bg-zinc-950/80 border border-amber-500/40 rounded-xl px-4 py-2 text-center min-w-[95px] shadow">
+              <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Pending</p>
+              <p className="text-xl sm:text-2xl font-black text-amber-400">{countMegaFlashPending}</p>
+            </div>
+            <button
+              onClick={() => {
+                setSlabFilter(slabFilter === 'mega_flash' ? 'all' : 'mega_flash');
+              }}
+              className={`px-4 py-2.5 rounded-xl font-bold text-xs transition shadow-lg flex items-center gap-2 cursor-pointer ${
+                slabFilter === 'mega_flash'
+                  ? 'bg-amber-400 text-black ring-2 ring-amber-300'
+                  : 'bg-zinc-800 hover:bg-zinc-700 text-amber-300 border border-amber-500/40'
+              }`}
+            >
+              <Filter size={14} />
+              <span>{slabFilter === 'mega_flash' ? 'Showing Mega Flash' : 'Filter Mega Flash'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* SEARCH AND DROPDOWN FILTERS TOOLBAR */}
       <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-4 mb-6 shadow-xl backdrop-blur-xl">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
@@ -1260,6 +1348,7 @@ export default function AdminPage({
                 className="w-full p-2.5 rounded-xl bg-zinc-950/80 border border-zinc-800 text-cyan-300 font-bold text-xs sm:text-sm focus:outline-none focus:border-cyan-400 appearance-none cursor-pointer pr-8"
               >
                 <option value="all">🎟️ All Pricing Slabs</option>
+                <option value="mega_flash">⚡ Mega Flash Sale ({countMegaFlash})</option>
                 <option value="flash_sale">⚡ Flash Sale ({countFlashSale})</option>
                 <option value="slab1">🐦 Early Bird ({countSlab1})</option>
                 <option value="slab2">🎫 Slab 1 ({countSlab2})</option>
@@ -1414,6 +1503,13 @@ export default function AdminPage({
                           </span>
                           {(() => {
                             const slab = userSlabMap.get(user.registration_id) || (Number(user.registration_id) <= 64 ? 'flash_sale' : Number(user.registration_id) <= 112 ? 'slab1' : 'slab2');
+                            if (slab === 'mega_flash') {
+                              return (
+                                <span className="bg-gradient-to-r from-amber-500/25 to-rose-500/25 text-amber-300 border border-amber-500/50 px-2 py-0.5 rounded text-[10px] font-black tracking-wide flex items-center gap-1 shadow-sm">
+                                  ⚡ Mega Flash (₹339)
+                                </span>
+                              );
+                            }
                             if (slab === 'flash_sale') {
                               return (
                                 <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded text-[10px] font-black tracking-wide flex items-center gap-1 shadow-sm">

@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from 'react';
 import axios from 'axios';
 import Link from 'next/link';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, Clock, Sparkles } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 
 export default function RegisterPage({
@@ -58,6 +58,25 @@ export default function RegisterPage({
   const [activeSlabName, setActiveSlabName] = useState<string>('Early Bird Offer');
   const [isClosed, setIsClosed] = useState<boolean>(false);
   const [isAdminMode, setIsAdminMode] = useState<boolean>(false);
+
+  // Mega Flash Sale live countdown timer state
+  const [megaTimer, setMegaTimer] = useState<{
+    hours: number;
+    minutes: number;
+    seconds: number;
+    isLive: boolean;
+    isUpcoming: boolean;
+    isEnded: boolean;
+    timeRemainingFormatted: string;
+  }>({
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+    isLive: false,
+    isUpcoming: false,
+    isEnded: false,
+    timeRemainingFormatted: ''
+  });
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -193,7 +212,7 @@ export default function RegisterPage({
     if (!evt || !evt.custom_pricing) return null;
     try {
       const parsed = typeof evt.custom_pricing === 'string' ? JSON.parse(evt.custom_pricing) : evt.custom_pricing;
-      if (parsed && (parsed.type === 'dandiya_tiered' || parsed.flash_sale)) {
+      if (parsed && (parsed.type === 'dandiya_tiered' || parsed.flash_sale || parsed.mega_flash)) {
         return parsed;
       }
     } catch (e) {
@@ -204,6 +223,74 @@ export default function RegisterPage({
 
   const dandiyaConfig = getDandiyaConfig(event);
   const isDandiyaTiered = Boolean(dandiyaConfig);
+
+  // Mega Flash Sale real-time ticking countdown timer (11:35 AM to 5:00 PM IST)
+  useEffect(() => {
+    if (!event) return;
+    const dandiyaCfg = getDandiyaConfig(event);
+    if (!dandiyaCfg || !dandiyaCfg.mega_flash || dandiyaCfg.mega_flash.enabled === false) return;
+
+    const mega = dandiyaCfg.mega_flash;
+    const megaStart = mega.start_time ? new Date(mega.start_time).getTime() : 0;
+    const megaEnd = mega.end_time ? new Date(mega.end_time).getTime() : 0;
+
+    if (!megaStart || !megaEnd) return;
+
+    const updateTimer = () => {
+      const now = Date.now();
+      if (now < megaStart) {
+        const diff = Math.max(0, megaStart - now);
+        const h = Math.floor(diff / (1000 * 60 * 60));
+        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((diff % (1000 * 60)) / 1000);
+        setMegaTimer({
+          hours: h,
+          minutes: m,
+          seconds: s,
+          isLive: false,
+          isUpcoming: true,
+          isEnded: false,
+          timeRemainingFormatted: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+        });
+      } else if (now >= megaStart && now < megaEnd) {
+        const diff = Math.max(0, megaEnd - now);
+        const h = Math.floor(diff / (1000 * 60 * 60));
+        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((diff % (1000 * 60)) / 1000);
+        setMegaTimer({
+          hours: h,
+          minutes: m,
+          seconds: s,
+          isLive: true,
+          isUpcoming: false,
+          isEnded: false,
+          timeRemainingFormatted: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+        });
+        if (activeSlabKey !== 'mega_flash') {
+          setActiveSlabKey('mega_flash');
+          setActiveSlabName(mega.name || '⚡ Mega Flash Sale');
+        }
+      } else {
+        setMegaTimer({
+          hours: 0,
+          minutes: 0,
+          seconds: 0,
+          isLive: false,
+          isUpcoming: false,
+          isEnded: true,
+          timeRemainingFormatted: '00:00:00'
+        });
+        if (activeSlabKey === 'mega_flash') {
+          setActiveSlabKey('slab2');
+          setActiveSlabName(dandiyaCfg.slab2?.name || 'Slab 1');
+        }
+      }
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [event, activeSlabKey]);
 
   const hasCustomPricing = Boolean(!isDandiyaTiered && event?.custom_pricing && (() => {
     try {
@@ -225,13 +312,17 @@ export default function RegisterPage({
 
     if (dandiyaCfg) {
       let qty = Math.max(1, quantities.dandiya || 1);
-      if (activeSlabKey === 'flash_sale' && qty > 4) {
+      if (activeSlabKey === 'mega_flash' && qty > 5) {
+        qty = 5;
+      } else if (activeSlabKey === 'flash_sale' && qty > 4) {
         qty = 4;
       }
       let unitPrice = 0;
 
       if (appliedCoupon && Number(appliedCoupon.price) >= 0) {
         unitPrice = Number(appliedCoupon.price);
+      } else if (activeSlabKey === 'mega_flash') {
+        unitPrice = Number(dandiyaCfg.mega_flash?.price) || 339;
       } else if (activeSlabKey === 'flash_sale') {
         unitPrice = Number(dandiyaCfg.flash_sale?.price) || 249;
       } else {
@@ -340,10 +431,15 @@ export default function RegisterPage({
         let slabName = "Early Bird Offer";
         let registrationClosed = false;
 
+        const mega = dandiyaCfg.mega_flash || {};
         const flash = dandiyaCfg.flash_sale || {};
         const s1 = dandiyaCfg.slab1 || {};
         const s2 = dandiyaCfg.slab2 || {};
         const s3 = dandiyaCfg.slab3 || {};
+
+        const megaStart = mega.start_time ? new Date(mega.start_time).getTime() : 0;
+        const megaEnd = mega.end_time ? new Date(mega.end_time).getTime() : 0;
+        const isMegaActive = mega.enabled !== false && megaStart > 0 && megaEnd > 0 && now >= megaStart && now < megaEnd;
 
         const flashLimit = Number(flash.threshold) || 50;
         const s1Limit = Number(s1.threshold) || 150;
@@ -357,10 +453,13 @@ export default function RegisterPage({
 
         if (evt.event_status === 'CLOSED' || evt.is_closed) {
           registrationClosed = true;
-        } else if (flash.enabled !== false && totalRegs < flashLimit && !flashDeadlinePassed) {
+        } else if (isMegaActive) {
+          slabKey = 'mega_flash';
+          slabName = mega.name || "⚡ Mega Flash Sale";
+        } else if (flash.enabled && totalRegs < flashLimit && !flashDeadlinePassed) {
           slabKey = 'flash_sale';
           slabName = "⚡ Flash Offer";
-        } else if (s1.enabled !== false && totalRegs < s1Limit && !s1DeadlinePassed) {
+        } else if (s1.enabled && totalRegs < s1Limit && !s1DeadlinePassed) {
           slabKey = 'slab1';
           slabName = s1.name || "🐦 Early Bird Offer";
         } else if (s2.enabled !== false && totalRegs < s2Limit && !s2DeadlinePassed) {
@@ -549,7 +648,11 @@ export default function RegisterPage({
         participants.forEach(p => tickets.push(p.ticket_type));
       } else if (dandiyaCfg) {
         const qty = Math.max(1, quantities.dandiya || 1);
-        tickets.push(`Dandiya Pass (${qty} ${qty > 1 ? 'Entries' : 'Entry'})`);
+        if (activeSlabKey === 'mega_flash') {
+          tickets.push(`Mega Flash Pass (${qty} ${qty > 1 ? 'Entries' : 'Entry'})`);
+        } else {
+          tickets.push(`Dandiya Pass (${qty} ${qty > 1 ? 'Entries' : 'Entry'})`);
+        }
       } else {
         for (let i = 0; i < quantities.solo; i++) tickets.push('solo');
         for (let i = 0; i < quantities.couple; i++) tickets.push('couple');
@@ -924,8 +1027,91 @@ export default function RegisterPage({
             </p>
           </div>
 
+          {/* UPCOMING MEGA FLASH SALE TEASER BANNER (BEFORE 11:35 AM IST) */}
+          {megaTimer.isUpcoming && (
+            <div className="relative overflow-hidden bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-rose-500/20 border-2 border-amber-400/70 rounded-3xl p-5 sm:p-6 mb-6 text-left shadow-[0_0_35px_rgba(245,158,11,0.25)] backdrop-blur-xl">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="px-3 py-0.5 bg-amber-400 text-black font-black text-xs uppercase tracking-wider rounded-full flex items-center gap-1 shadow animate-pulse">
+                      <span>🚀</span> UPCOMING SALE
+                    </span>
+                    <span className="text-xs text-amber-300 font-bold">Today 11:35 AM to 5:00 PM IST</span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-black text-white">
+                    ⚡ Mega Flash Sale at <span className="text-amber-400">₹339 Flat</span> Drops Soon!
+                  </h3>
+                  <p className="text-gray-300 text-xs sm:text-sm mt-1 max-w-lg">
+                    Flat ₹339 per ticket (Max 5 tickets per user). Sale unlocks automatically at 11:35 AM IST today and runs till 5:00 PM IST!
+                  </p>
+                </div>
+                <div className="bg-black/70 border border-amber-400/50 rounded-2xl px-5 py-3 text-center shrink-0 min-w-[150px] shadow-lg">
+                  <div className="flex items-center justify-center gap-1.5 text-[10px] text-amber-400 font-bold uppercase tracking-wider mb-0.5">
+                    <Clock size={12} className="animate-spin" />
+                    <span>Starts In</span>
+                  </div>
+                  <p className="text-2xl font-black text-amber-300 font-mono tracking-wider">
+                    {megaTimer.timeRemainingFormatted || '00:00:00'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ACTIVE OFFER BANNER */}
-          {activeSlabKey === 'flash_sale' ? (
+          {activeSlabKey === 'mega_flash' ? (
+            <div className="relative overflow-hidden bg-gradient-to-r from-amber-500/25 via-orange-600/25 to-rose-600/25 border-2 border-amber-400/80 rounded-3xl p-6 sm:p-7 mb-8 text-left shadow-[0_0_50px_rgba(245,158,11,0.35)] backdrop-blur-xl">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-3.5 py-1 bg-gradient-to-r from-amber-400 to-orange-500 text-black font-black text-xs uppercase tracking-wider rounded-full shadow-lg animate-pulse flex items-center gap-1.5">
+                      <span>⚡</span> MEGA FLASH SALE LIVE
+                    </span>
+                    <span className="text-xs text-amber-300 font-bold bg-black/50 px-3 py-1 rounded-full border border-amber-500/40">
+                      Flat ₹{dandiyaConfig.mega_flash?.price || 339} / Ticket • Max 5 Tickets
+                    </span>
+                  </div>
+                  <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+                    Mega Flash Drop: <span className="bg-gradient-to-r from-amber-300 via-orange-300 to-rose-300 bg-clip-text text-transparent">₹{dandiyaConfig.mega_flash?.price || 339} Flat!</span>
+                  </h2>
+                  <p className="text-amber-100/90 text-sm sm:text-base max-w-xl">
+                    Limited-time flat rate of ₹339 per ticket (capped at 5 max tickets at once). Standard pricing automatically resumes at 5:00 PM IST today!
+                  </p>
+                </div>
+
+                {/* LIVE COUNTDOWN TIMER CARD */}
+                <div className="bg-black/80 border-2 border-amber-400/60 rounded-2xl p-4 sm:p-5 text-center min-w-[240px] shadow-2xl backdrop-blur-md self-center lg:self-auto">
+                  <div className="flex items-center justify-center gap-1.5 text-xs text-amber-400 font-black uppercase tracking-wider mb-2">
+                    <Clock size={14} className="animate-spin" />
+                    <span>SALE CLOSES IN</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 my-2">
+                    <div className="bg-zinc-900/90 border border-amber-500/40 rounded-xl p-2">
+                      <span className="text-2xl sm:text-3xl font-black text-white block">
+                        {String(megaTimer.hours).padStart(2, '0')}
+                      </span>
+                      <span className="text-[10px] uppercase font-bold text-gray-400">Hours</span>
+                    </div>
+                    <div className="bg-zinc-900/90 border border-amber-500/40 rounded-xl p-2">
+                      <span className="text-2xl sm:text-3xl font-black text-amber-300 block">
+                        {String(megaTimer.minutes).padStart(2, '0')}
+                      </span>
+                      <span className="text-[10px] uppercase font-bold text-gray-400">Mins</span>
+                    </div>
+                    <div className="bg-zinc-900/90 border border-amber-500/40 rounded-xl p-2">
+                      <span className="text-2xl sm:text-3xl font-black text-rose-400 block animate-pulse">
+                        {String(megaTimer.seconds).padStart(2, '0')}
+                      </span>
+                      <span className="text-[10px] uppercase font-bold text-gray-400">Secs</span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-amber-300/90 font-bold mt-1">
+                    Strictly closes at 5:00 PM IST today!
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : activeSlabKey === 'flash_sale' ? (
             <div className="relative overflow-hidden bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-rose-500/20 border-2 border-amber-500/60 rounded-3xl p-6 mb-8 text-left shadow-[0_0_40px_rgba(245,158,11,0.25)]">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
                 <div>
@@ -1016,6 +1202,22 @@ export default function RegisterPage({
             const p10 = Number(currentSlab.price_10_plus) || 239;
             const currentQty = Math.max(1, quantities.dandiya || 1);
 
+            if (activeSlabKey === 'mega_flash') {
+              return (
+                <div className="mb-8 bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-rose-500/15 border-2 border-amber-500/40 rounded-2xl p-5 text-center shadow-lg">
+                  <span className="text-xs uppercase font-black tracking-wider text-amber-300 block mb-1">
+                    ⚡ Mega Flash Special Pricing
+                  </span>
+                  <p className="text-2xl sm:text-3xl font-black text-white">
+                    Flat ₹{dandiyaConfig.mega_flash?.price || 339} <span className="text-sm font-normal text-gray-300">/ pass (Buy 1 to 5 passes)</span>
+                  </p>
+                  <p className="text-xs text-amber-200/90 mt-1 font-medium">
+                    Regular Single Pass: <span className="line-through text-gray-400">₹389</span> — Instant ₹50 Discount per Pass!
+                  </p>
+                </div>
+              );
+            }
+
             if (activeSlabKey === 'flash_sale') {
               return null;
             }
@@ -1094,10 +1296,12 @@ export default function RegisterPage({
               <button
                 type="button"
                 onClick={() => {
-                  const maxLimit = activeSlabKey === 'flash_sale' ? 4 : 50;
+                  const maxLimit = activeSlabKey === 'mega_flash' ? 5 : activeSlabKey === 'flash_sale' ? 4 : 50;
                   const current = quantities.dandiya || 1;
                   if (current >= maxLimit) {
-                    if (activeSlabKey === 'flash_sale') {
+                    if (activeSlabKey === 'mega_flash') {
+                      alert("⚡ Mega Flash Sale is capped at a maximum of 5 tickets per user!");
+                    } else if (activeSlabKey === 'flash_sale') {
                       alert("Flash Sale is capped at a maximum of 4 tickets per user!");
                     }
                     return;
@@ -1110,11 +1314,15 @@ export default function RegisterPage({
               </button>
             </div>
 
-            {activeSlabKey === 'flash_sale' && (
+            {activeSlabKey === 'mega_flash' ? (
+              <p className="text-xs font-bold text-amber-300 bg-amber-500/10 border border-amber-500/30 py-2 px-4 rounded-xl inline-block">
+                ⚡ Mega Flash Sale Limit: Maximum 5 tickets per user (Flat ₹339 / pass)
+              </p>
+            ) : activeSlabKey === 'flash_sale' ? (
               <p className="text-xs font-bold text-amber-300 bg-amber-500/10 border border-amber-500/30 py-2 px-4 rounded-xl inline-block">
                 ⚡ Flash Sale Limit: Maximum 4 tickets per user
               </p>
-            )}
+            ) : null}
           </div>
 
           {/* INCLUSIONS NOTE */}
