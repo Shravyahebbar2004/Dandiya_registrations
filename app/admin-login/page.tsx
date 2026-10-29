@@ -38,8 +38,11 @@ export default function AdminLogin() {
           `${apiUrl}/api/admin/login`,
           { username: cleanUsername, password: cleanPassword }
         );
+        const role = response.data.role || (cleanPassword === '056' ? 'viewer' : 'admin');
         sessionStorage.setItem('admin_token', response.data.token);
         localStorage.setItem('admin_token', response.data.token);
+        sessionStorage.setItem('admin_role', role);
+        localStorage.setItem('admin_role', role);
         router.push(`/admin/${response.data.event_id || 1}`);
       } else {
         const response = await axios.post(

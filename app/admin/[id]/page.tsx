@@ -428,6 +428,17 @@ export default function AdminPage({
   const [slabFilter, setSlabFilter] = useState<string>('all');
   const [mounted, setMounted] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [adminRole, setAdminRole] = useState<'admin' | 'viewer'>('admin');
+  const isViewer = adminRole === 'viewer';
+
+  const formatTicketType = (ticketType: string) => {
+    if (!ticketType) return '';
+    if (isViewer) {
+      return ticketType.replace(/\s*\(\d+\s*(entries|entry|passes|pass|tickets|ticket)\)/gi, '').trim();
+    }
+    return ticketType;
+  };
+
   const [approvingId, setApprovingId] = useState<number | null>(null);
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [recoveringId, setRecoveringId] = useState<number | null>(null);
@@ -757,6 +768,7 @@ export default function AdminPage({
     setMounted(true);
 
     const adminToken = sessionStorage.getItem('admin_token') || localStorage.getItem('admin_token');
+    const storedRole = sessionStorage.getItem('admin_role') || localStorage.getItem('admin_role');
 
     if (!adminToken) {
       setIsAuthorized(false);
@@ -764,6 +776,21 @@ export default function AdminPage({
         window.location.href = '/admin-login';
       }
       return;
+    }
+
+    if (storedRole === 'viewer') {
+      setAdminRole('viewer');
+    } else {
+      try {
+        const payload = JSON.parse(atob(adminToken.split('.')[1]));
+        if (payload.role === 'viewer') {
+          setAdminRole('viewer');
+        } else {
+          setAdminRole('admin');
+        }
+      } catch (e) {
+        setAdminRole('admin');
+      }
     }
 
     fetchUsers();
@@ -797,8 +824,10 @@ export default function AdminPage({
       if (Date.now() - lastActivity >= INACTIVITY_LIMIT_MS) {
         localStorage.removeItem('admin_token');
         localStorage.removeItem('scanner_token');
+        localStorage.removeItem('admin_role');
         sessionStorage.removeItem('admin_token');
         sessionStorage.removeItem('scanner_token');
+        sessionStorage.removeItem('admin_role');
         setIsAuthorized(false);
         alert('Session expired: You have been automatically logged out due to 5 minutes of inactivity for security.');
         if (typeof window !== 'undefined') {
@@ -1117,61 +1146,71 @@ export default function AdminPage({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
-          <button
-            onClick={() => window.open(`/register/${id}?admin=true`, '_blank')}
-            className="flex-1 sm:flex-initial bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 shadow-lg"
-          >
-            <UserPlus size={16} />
-            <span>Add Registration</span>
-          </button>
+          {isViewer && (
+            <span className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-violet-500/20 border border-violet-500/40 text-violet-300 text-xs sm:text-sm font-bold shadow-lg">
+              <span>👁️</span> Read-Only Viewer Mode
+            </span>
+          )}
 
-          <button
-            onClick={exportExcel}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2 shadow-lg"
-          >
-            <FileSpreadsheet size={16} />
-            <span>Excel (.xls)</span>
-          </button>
+          {!isViewer && (
+            <>
+              <button
+                onClick={() => window.open(`/register/${id}?admin=true`, '_blank')}
+                className="flex-1 sm:flex-initial bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 shadow-lg"
+              >
+                <UserPlus size={16} />
+                <span>Add Registration</span>
+              </button>
 
-          <button
-            onClick={exportEmailCSV}
-            className="bg-amber-500 hover:bg-amber-400 text-black px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2 shadow-lg"
-          >
-            <Mail size={16} />
-            <span>Email Directory</span>
-          </button>
+              <button
+                onClick={exportExcel}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2 shadow-lg"
+              >
+                <FileSpreadsheet size={16} />
+                <span>Excel (.xls)</span>
+              </button>
 
-          <button
-            onClick={exportCSV}
-            className="bg-zinc-800 hover:bg-zinc-700 text-gray-200 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2 border border-zinc-700"
-          >
-            <Download size={16} />
-            <span>Export View</span>
-          </button>
+              <button
+                onClick={exportEmailCSV}
+                className="bg-amber-500 hover:bg-amber-400 text-black px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2 shadow-lg"
+              >
+                <Mail size={16} />
+                <span>Email Directory</span>
+              </button>
 
-          <button
-            onClick={() => router.push(`/edit-event/${id}`)}
-            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2"
-          >
-            <Edit size={16} />
-            <span>Edit Event</span>
-          </button>
+              <button
+                onClick={exportCSV}
+                className="bg-zinc-800 hover:bg-zinc-700 text-gray-200 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2 border border-zinc-700"
+              >
+                <Download size={16} />
+                <span>Export View</span>
+              </button>
 
-          <button
-            onClick={() => {
-              setShowQueriesModal(true);
-              fetchAdminQueries();
-            }}
-            className="relative bg-gradient-to-r from-amber-600/80 to-orange-600/80 hover:from-amber-600 hover:to-orange-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2 border border-amber-500/40 shadow-lg cursor-pointer"
-          >
-            <HelpCircle size={16} className="text-amber-300" />
-            <span>Attendee Q&A</span>
-            {pendingQueriesCount > 0 && (
-              <span className="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full animate-pulse shadow">
-                {pendingQueriesCount} new
-              </span>
-            )}
-          </button>
+              <button
+                onClick={() => router.push(`/edit-event/${id}`)}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2"
+              >
+                <Edit size={16} />
+                <span>Edit Event</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowQueriesModal(true);
+                  fetchAdminQueries();
+                }}
+                className="relative bg-gradient-to-r from-amber-600/80 to-orange-600/80 hover:from-amber-600 hover:to-orange-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2 border border-amber-500/40 shadow-lg cursor-pointer"
+              >
+                <HelpCircle size={16} className="text-amber-300" />
+                <span>Attendee Q&A</span>
+                {pendingQueriesCount > 0 && (
+                  <span className="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full animate-pulse shadow">
+                    {pendingQueriesCount} new
+                  </span>
+                )}
+              </button>
+            </>
+          )}
 
           <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold">
             <span>🔒</span> Auto-Logout: 5m Idle
@@ -1181,8 +1220,10 @@ export default function AdminPage({
             onClick={() => {
               localStorage.removeItem('admin_token');
               localStorage.removeItem('scanner_token');
+              localStorage.removeItem('admin_role');
               sessionStorage.removeItem('admin_token');
               sessionStorage.removeItem('scanner_token');
+              sessionStorage.removeItem('admin_role');
               setIsAuthorized(false);
               if (typeof window !== 'undefined') window.location.href = '/admin-login';
             }}
@@ -1195,7 +1236,7 @@ export default function AdminPage({
       </div>
 
       {/* STATS CARDS */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+      <div className={`grid grid-cols-2 sm:grid-cols-3 ${isViewer ? 'lg:grid-cols-5' : 'lg:grid-cols-6'} gap-4 mb-6`}>
         <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-lg flex items-center justify-between">
           <div>
             <p className="text-xs uppercase tracking-wider font-bold text-gray-400">Total Registrations</p>
@@ -1224,7 +1265,9 @@ export default function AdminPage({
               {statusFilter === 'mega_sale' && <span className="text-[10px] bg-amber-400 text-black px-1.5 py-0.2 rounded font-black">ACTIVE</span>}
             </p>
             <p className="text-2xl sm:text-3xl font-black text-amber-300 mt-1">{countMegaFlash}</p>
-            <p className="text-[11px] text-gray-400 mt-0.5">{totalMegaFlashEntries} passes (₹339)</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">
+              {isViewer ? 'Flat ₹339 Sale' : `${totalMegaFlashEntries} passes (₹339)`}
+            </p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center text-black font-black text-lg shadow-lg shadow-amber-500/20">
             ⚡
@@ -1241,15 +1284,17 @@ export default function AdminPage({
           </div>
         </div>
 
-        <div className="bg-zinc-900/80 border border-cyan-500/20 rounded-2xl p-4 sm:p-5 shadow-lg flex items-center justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-wider font-bold text-cyan-400">Total Entries</p>
-            <p className="text-2xl sm:text-3xl font-black text-cyan-300 mt-1">{totalEntries}</p>
+        {!isViewer && (
+          <div className="bg-zinc-900/80 border border-cyan-500/20 rounded-2xl p-4 sm:p-5 shadow-lg flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-wider font-bold text-cyan-400">Total Entries</p>
+              <p className="text-2xl sm:text-3xl font-black text-cyan-300 mt-1">{totalEntries}</p>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+              <Ticket size={20} />
+            </div>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
-            <Ticket size={20} />
-          </div>
-        </div>
+        )}
 
         <div className="bg-zinc-900/80 border border-amber-500/20 rounded-2xl p-4 sm:p-5 shadow-lg flex items-center justify-between">
           <div>
@@ -1310,10 +1355,12 @@ export default function AdminPage({
               <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Buyers</p>
               <p className="text-xl sm:text-2xl font-black text-amber-300">{countMegaFlash}</p>
             </div>
-            <div className="bg-zinc-950/80 border border-cyan-500/40 rounded-xl px-4 py-2 text-center min-w-[95px] shadow">
-              <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Passes Sold</p>
-              <p className="text-xl sm:text-2xl font-black text-cyan-300">{totalMegaFlashEntries}</p>
-            </div>
+            {!isViewer && (
+              <div className="bg-zinc-950/80 border border-cyan-500/40 rounded-xl px-4 py-2 text-center min-w-[95px] shadow">
+                <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Passes Sold</p>
+                <p className="text-xl sm:text-2xl font-black text-cyan-300">{totalMegaFlashEntries}</p>
+              </div>
+            )}
             <div className="bg-zinc-950/80 border border-emerald-500/40 rounded-xl px-4 py-2 text-center min-w-[95px] shadow">
               <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Approved</p>
               <p className="text-xl sm:text-2xl font-black text-emerald-400">{countMegaFlashApproved}</p>
@@ -1511,7 +1558,7 @@ export default function AdminPage({
             <span className="text-2xl">⚡</span>
             <div>
               <h3 className="text-base font-black text-amber-300">
-                Mega Sale Registrations ({countMegaFlash} Buyers • {totalMegaFlashEntries} Passes Sold)
+                Mega Sale Registrations ({countMegaFlash} Buyers{!isViewer ? ` • ${totalMegaFlashEntries} Passes Sold` : ''})
               </h3>
               <p className="text-xs text-gray-300">
                 Showing all attendees who registered during the flat ₹339 Mega Sale (Today 12:00 PM – 5:00 PM IST).
@@ -1545,20 +1592,22 @@ export default function AdminPage({
                 List of unique email addresses with complete participant history.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2.5">
-              <button
-                onClick={exportEmailCSV}
-                className="bg-amber-400 hover:bg-amber-500 text-black px-4 py-2 rounded-xl font-bold text-xs transition flex items-center gap-2 shadow"
-              >
-                <Download size={14} /> Download Email Directory CSV
-              </button>
-              <button
-                onClick={exportEmailDetailedCSV}
-                className="bg-amber-500 hover:bg-amber-600 text-black px-4 py-2 rounded-xl font-bold text-xs transition flex items-center gap-2 shadow"
-              >
-                <Download size={14} /> Download Detailed CSV
-              </button>
-            </div>
+            {!isViewer && (
+              <div className="flex flex-wrap gap-2.5">
+                <button
+                  onClick={exportEmailCSV}
+                  className="bg-amber-400 hover:bg-amber-500 text-black px-4 py-2 rounded-xl font-bold text-xs transition flex items-center gap-2 shadow"
+                >
+                  <Download size={14} /> Download Email Directory CSV
+                </button>
+                <button
+                  onClick={exportEmailDetailedCSV}
+                  className="bg-amber-500 hover:bg-amber-600 text-black px-4 py-2 rounded-xl font-bold text-xs transition flex items-center gap-2 shadow"
+                >
+                  <Download size={14} /> Download Detailed CSV
+                </button>
+              </div>
+            )}
           </div>
 
           <table className="w-full min-w-[900px] text-left border-collapse">
@@ -1587,7 +1636,7 @@ export default function AdminPage({
                         <div key={u.registration_id} className="flex flex-wrap items-center gap-1.5 text-xs">
                           <span className="font-bold text-white">{u.full_name}</span>
                           <span className="bg-amber-400/10 text-amber-300 px-2 py-0.5 rounded font-medium text-[11px]">
-                            {u.ticket_type}
+                            {formatTicketType(u.ticket_type)}
                           </span>
                           {u.bib_number && (
                             <span className="bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded font-bold text-[11px]">
@@ -1637,14 +1686,14 @@ export default function AdminPage({
                   <th className="p-4">UPI UTR / Ref</th>
                   <th className="p-4 text-center">Payment Proof</th>
                   <th className="p-4 text-center">Status</th>
-                  <th className="p-4 text-center">Entries</th>
-                  <th className="p-4 text-center">Action</th>
+                  {!isViewer && <th className="p-4 text-center">Entries</th>}
+                  {!isViewer && <th className="p-4 text-center">Action</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/60 text-xs sm:text-sm">
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="p-12 text-center text-gray-400 font-medium">
+                    <td colSpan={isViewer ? 8 : 10} className="p-12 text-center text-gray-400 font-medium">
                       No attendee registrations found matching the current search & dropdown filters.
                     </td>
                   </tr>
@@ -1707,7 +1756,7 @@ export default function AdminPage({
                       <td className="p-4 whitespace-nowrap">
                         <div className="flex flex-col gap-1.5 items-start">
                           <span className="bg-amber-400/10 text-amber-300 border border-amber-400/30 px-3 py-1 rounded-lg font-bold text-xs">
-                            {user.ticket_type}
+                            {formatTicketType(user.ticket_type)}
                           </span>
                           {(() => {
                             const slab = userSlabMap.get(user.registration_id) || (Number(user.registration_id) <= 64 ? 'flash_sale' : Number(user.registration_id) <= 112 ? 'slab1' : 'slab2');
@@ -1766,7 +1815,7 @@ export default function AdminPage({
                             return (
                               <div className="space-y-1 min-w-[160px]">
                                 <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider block">
-                                  ✓ {namesList.length} Entered:
+                                  ✓ {isViewer ? 'Entered:' : `${namesList.length} Entered:`}
                                 </span>
                                 <div className="flex flex-wrap gap-1">
                                   {namesList.map((name, idx) => (
@@ -1782,7 +1831,7 @@ export default function AdminPage({
                           if (Number(user.used_entries) > 0) {
                             return (
                               <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-md text-xs font-bold inline-block">
-                                ✓ {user.used_entries} Entry Scanned
+                                ✓ {isViewer ? 'Entered' : `${user.used_entries} Entry Scanned`}
                               </span>
                             );
                           }
@@ -1855,64 +1904,68 @@ export default function AdminPage({
                       </td>
 
                       {/* ENTRY COUNT */}
-                      <td className="p-4 text-center whitespace-nowrap">
-                        <span className="font-bold text-xs text-zinc-300">
-                          {user.used_entries}/{user.allowed_entries}
-                        </span>
-                      </td>
+                      {!isViewer && (
+                        <td className="p-4 text-center whitespace-nowrap">
+                          <span className="font-bold text-xs text-zinc-300">
+                            {user.used_entries}/{user.allowed_entries}
+                          </span>
+                        </td>
+                      )}
 
                       {/* ACTION */}
-                      <td className="p-4 text-center whitespace-nowrap">
-                        {user.payment_status === 'pending' || user.payment_status === 'draft' ? (
-                          <div className="flex items-center justify-center gap-2">
+                      {!isViewer && (
+                        <td className="p-4 text-center whitespace-nowrap">
+                          {user.payment_status === 'pending' || user.payment_status === 'draft' ? (
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => approvePayment(user.registration_id)}
+                                disabled={approvingId === user.registration_id}
+                                className={`bg-emerald-500 hover:bg-emerald-400 text-black px-3.5 py-1.5 rounded-lg font-bold text-xs transition shadow ${approvingId === user.registration_id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              >
+                                {approvingId === user.registration_id ? 'Approving...' : 'Approve'}
+                              </button>
+                              <button
+                                onClick={() => rejectRegistration(user.registration_id)}
+                                disabled={rejectingId === user.registration_id}
+                                className={`bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 ${rejectingId === user.registration_id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              >
+                                <XCircle size={13} />
+                                {rejectingId === user.registration_id ? 'Rejecting...' : 'Reject'}
+                              </button>
+                            </div>
+                          ) : user.payment_status === 'rejected' ? (
                             <button
-                              onClick={() => approvePayment(user.registration_id)}
-                              disabled={approvingId === user.registration_id}
-                              className={`bg-emerald-500 hover:bg-emerald-400 text-black px-3.5 py-1.5 rounded-lg font-bold text-xs transition shadow ${approvingId === user.registration_id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              onClick={() => recoverRegistration(user.registration_id)}
+                              disabled={recoveringId === user.registration_id}
+                              className={`bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 px-3.5 py-1.5 rounded-lg font-bold text-xs transition flex items-center justify-center gap-1.5 mx-auto ${recoveringId === user.registration_id ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
-                              {approvingId === user.registration_id ? 'Approving...' : 'Approve'}
+                              <RotateCcw size={13} />
+                              {recoveringId === user.registration_id ? 'Recovering...' : 'Recover'}
                             </button>
-                            <button
-                              onClick={() => rejectRegistration(user.registration_id)}
-                              disabled={rejectingId === user.registration_id}
-                              className={`bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 ${rejectingId === user.registration_id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                              <XCircle size={13} />
-                              {rejectingId === user.registration_id ? 'Rejecting...' : 'Reject'}
-                            </button>
-                          </div>
-                        ) : user.payment_status === 'rejected' ? (
-                          <button
-                            onClick={() => recoverRegistration(user.registration_id)}
-                            disabled={recoveringId === user.registration_id}
-                            className={`bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 px-3.5 py-1.5 rounded-lg font-bold text-xs transition flex items-center justify-center gap-1.5 mx-auto ${recoveringId === user.registration_id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          >
-                            <RotateCcw size={13} />
-                            {recoveringId === user.registration_id ? 'Recovering...' : 'Recover'}
-                          </button>
-                        ) : user.payment_status === 'approved' ? (
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              onClick={() => approvePayment(user.registration_id)}
-                              disabled={approvingId === user.registration_id}
-                              title="Re-send pass with QR code via email"
-                              className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 px-2.5 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1 shadow-sm"
-                            >
-                              <Mail size={12} />
-                              <span>{approvingId === user.registration_id ? 'Sending...' : 'Resend Pass'}</span>
-                            </button>
-                            <button
-                              onClick={() => setPendingRegistration(user.registration_id)}
-                              disabled={settingPendingId === user.registration_id}
-                              title="Reset status back to Pending"
-                              className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-2 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1 shadow-sm"
-                            >
-                              <Clock size={12} />
-                              <span>{settingPendingId === user.registration_id ? '...' : 'Pending'}</span>
-                            </button>
-                          </div>
-                        ) : null}
-                      </td>
+                          ) : user.payment_status === 'approved' ? (
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => approvePayment(user.registration_id)}
+                                disabled={approvingId === user.registration_id}
+                                title="Re-send pass with QR code via email"
+                                className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 px-2.5 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1 shadow-sm"
+                              >
+                                <Mail size={12} />
+                                <span>{approvingId === user.registration_id ? 'Sending...' : 'Resend Pass'}</span>
+                              </button>
+                              <button
+                                onClick={() => setPendingRegistration(user.registration_id)}
+                                disabled={settingPendingId === user.registration_id}
+                                title="Reset status back to Pending"
+                                className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-2 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1 shadow-sm"
+                              >
+                                <Clock size={12} />
+                                <span>{settingPendingId === user.registration_id ? '...' : 'Pending'}</span>
+                              </button>
+                            </div>
+                          ) : null}
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}

@@ -36,15 +36,23 @@ export default function EditEventPage() {
   const [isAuthorized, setIsAuthorized] = useState(false);
 
   useEffect(() => {
-    const adminToken = localStorage.getItem('admin_token');
-    const platformToken = localStorage.getItem('platform_token');
+    const adminToken = localStorage.getItem('admin_token') || sessionStorage.getItem('admin_token');
+    const platformToken = localStorage.getItem('platform_token') || sessionStorage.getItem('platform_token');
+    const adminRole = localStorage.getItem('admin_role') || sessionStorage.getItem('admin_role');
+
+    if (adminRole === 'viewer') {
+      alert('View-only mode: You do not have permission to edit events.');
+      router.push(`/admin/${id || 1}`);
+      return;
+    }
+
     if (!adminToken && !platformToken) {
       setIsAuthorized(false);
       router.push('/admin-login');
       return;
     }
     setIsAuthorized(true);
-  }, [router]);
+  }, [router, id]);
 
   // Auto logout on 5 minutes inactivity
   useEffect(() => {
