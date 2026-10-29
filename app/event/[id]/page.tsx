@@ -308,7 +308,7 @@ export default function EventPage({
         {/* INFO: VENUE & DATE CARDS */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto mb-8 sm:mb-12">
           <a
-
+            href={event.venue_map_url || 'https://share.google/SmVDY2TbdA9RRCQwO'}
             target="_blank"
             rel="noopener noreferrer"
             className="p-5 sm:p-6 rounded-2xl bg-white/[0.025] border border-white/10 hover:border-amber-400/40 backdrop-blur-xl flex items-start gap-4 transition group shadow-lg cursor-pointer"
@@ -321,8 +321,8 @@ export default function EventPage({
               <p className="text-base sm:text-lg font-bold text-white group-hover:text-amber-300 transition line-clamp-2">
                 {event.venue}
               </p>
-              <p className="text-xs text-amber-300/80 mt-1.5 flex items-center gap-1 font-medium">
-                <span>📍 Location will be shared soon </span> ↗
+              <p className="text-xs text-amber-300/80 mt-1.5 flex items-center gap-1 font-medium group-hover:underline">
+                <span>📍 View on Google Maps</span> ↗
               </p>
             </div>
           </a>

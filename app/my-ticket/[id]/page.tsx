@@ -95,7 +95,7 @@ export default function MyTicketPage() {
   const generateExactTicketCanvas = async (ticket: any): Promise<HTMLCanvasElement> => {
     const canvas = document.createElement('canvas');
     const width = 600;
-    const height = 1020;
+    const height = 1050;
     canvas.width = width * 2;
     canvas.height = height * 2;
 
@@ -165,7 +165,7 @@ export default function MyTicketPage() {
     ctx.textAlign = 'left';
     const startX = cardX + 40;
     let currentY = cardY + 215;
-    const lineGap = 32;
+    const lineGap = 30;
 
     const details = [
       ['Name:', ticket.full_name || 'N/A'],
@@ -174,6 +174,7 @@ export default function MyTicketPage() {
       ['Event:', ticket.title || 'N/A'],
       ['Ticket:', `${ticket.ticket_type || ''} (${ticket.allowed_entries || 1} members)`],
       ['Venue:', ticket.venue || 'N/A'],
+      ['Location:', (ticket.venue_map_url || 'https://share.google/SmVDY2TbdA9RRCQwO').replace('https://', '')],
       ['Date & Time:', ticket.event_date ? `${new Date(ticket.event_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' })} • ${new Date(ticket.event_date).toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true })} IST` : 'N/A']
     ];
 
@@ -588,6 +589,17 @@ export default function MyTicketPage() {
                         <p className="text-white text-lg">
                           <span className="text-amber-300 font-bold">Venue:</span> {ticket.venue}
                         </p>
+                        <div className="pt-0.5 pb-1">
+                          <a
+                            href={ticket.venue_map_url || 'https://share.google/SmVDY2TbdA9RRCQwO'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs sm:text-sm font-bold transition w-fit shadow-sm"
+                          >
+                            <MapPin size={15} />
+                            <span>📍 View Venue on Google Maps ↗</span>
+                          </a>
+                        </div>
                         <p className="text-white text-lg">
                           <span className="text-amber-300 font-bold">Date & Time:</span>{' '}
                           {new Date(ticket.event_date).toLocaleDateString('en-IN', {
