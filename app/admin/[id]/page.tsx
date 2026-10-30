@@ -107,6 +107,42 @@ export default function AdminPage({
     }
   };
 
+  const isRotaractUser = (u: User) => {
+    const aff = (u.club_affiliation || '').toLowerCase().trim();
+    const name = (u.full_name || '').toLowerCase();
+    return (
+      aff.includes('rotaract') ||
+      aff.includes('rcy') ||
+      aff.includes('rac') ||
+      aff.includes('yelahanka') ||
+      aff.includes('orion') ||
+      aff.includes('vidyaranapura') ||
+      aff.includes('cult') ||
+      aff === '11897876' ||
+      name.includes('rtr')
+    );
+  };
+
+  const getRotaractClubCategory = (u: User) => {
+    const aff = (u.club_affiliation || '').toLowerCase().trim();
+    if (aff.includes('yelahanka') || aff === 'rcy' || aff.includes('rcy')) return 'Rotaract Club of Yelahanka';
+    if (aff.includes('orion')) return 'Rotaract Club of Bengaluru Orion Gateway';
+    if (aff.includes('oasis')) return 'Rotaract Club of Bangalore Oasis';
+    if (aff.includes('presidency')) return 'Rotaract Club of Presidency University';
+    if (aff.includes('m s engineering') || aff.includes('ms engineering')) return 'Rotaract Club of M S Engineering College';
+    if (aff.includes('bangalore west')) return 'Rotaract Club of Bangalore West';
+    if (aff.includes('swarna')) return 'RaC Swarna Bengaluru';
+    if (aff.includes('north west')) return 'Rotaract Club of Bangalore North West';
+    if (aff.includes('nagasandra')) return 'Rotaract Club of Bengaluru Nagasandra';
+    if (aff.includes('bhuvaneshwari')) return 'Rotaract Club of Bangalore Bhuvaneshwari Nagar';
+    if (aff.includes('udyog')) return 'Rotaract Club of Bangalore Udyog';
+    if (aff.includes('falcon')) return 'Rac Falcon Youth';
+    if (aff.includes('vidyaran')) return 'Rotaract Club of Vidyaranyapura';
+    if (aff.includes('rotaract club of bangalore') || aff === 'rotaract club of bangalore') return 'Rotaract Club of Bangalore';
+    if (isRotaractUser(u)) return 'Other Rotaract Clubs';
+    return 'Non-Rotaract / Public';
+  };
+
   const exportExcel = () => {
     const headers = [
       'Name',
@@ -199,7 +235,8 @@ export default function AdminPage({
       { name: 'Sheet 7 - Flash Sale Timeline', data: sortedAsc.filter((u) => (userSlabMap.get(u.registration_id) || (Number(u.registration_id) <= 64 ? 'flash_sale' : Number(u.registration_id) <= 112 ? 'slab1' : 'slab2')) === 'flash_sale') },
       { name: 'Sheet 8 - Early Bird Passes', data: sortedAsc.filter((u) => (userSlabMap.get(u.registration_id) || (Number(u.registration_id) <= 64 ? 'flash_sale' : Number(u.registration_id) <= 112 ? 'slab1' : 'slab2')) === 'slab1') },
       { name: 'Sheet 9 - Slab 1 Registrations', data: sortedAsc.filter((u) => (userSlabMap.get(u.registration_id) || (Number(u.registration_id) <= 64 ? 'flash_sale' : Number(u.registration_id) <= 112 ? 'slab1' : 'slab2')) === 'slab2') },
-      { name: 'Sheet 10 - Last Chance Registrations', data: sortedAsc.filter((u) => userSlabMap.get(u.registration_id) === 'slab3') }
+      { name: 'Sheet 10 - Last Chance Registrations', data: sortedAsc.filter((u) => userSlabMap.get(u.registration_id) === 'slab3') },
+      { name: 'Sheet 11 - Rotaract Clubs', data: sortedAsc.filter(isRotaractUser) }
     ];
 
     let workbookXml = `<?xml version="1.0"?>
@@ -230,6 +267,462 @@ export default function AdminPage({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const exportRotaractExcel = () => {
+    const escapeXml = (str: any) => {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+    };
+
+    const rotaractUsers = users.filter(isRotaractUser);
+
+    type AttRow = {
+      sl: number;
+      club: string;
+      rawClub: string;
+      name: string;
+      type: string;
+      registeredBy: string;
+      email: string;
+      phone: string;
+      ticket: string;
+      status: string;
+      regId: number;
+      utr: string;
+    };
+
+    const attendeeList: AttRow[] = [];
+    let sl = 1;
+
+    rotaractUsers.forEach((u) => {
+      const clubNorm = getRotaractClubCategory(u);
+      const rawClub = u.club_affiliation || 'None';
+      const primaryNames = (u.full_name || '').split(',').map((s) => s.trim()).filter(Boolean);
+      const names = primaryNames.length > 0 ? primaryNames : [u.full_name || 'N/A'];
+
+      names.forEach((pName) => {
+        attendeeList.push({
+          sl: sl++,
+          club: clubNorm,
+          rawClub,
+          name: pName,
+          type: 'Primary Registrant',
+          registeredBy: u.full_name,
+          email: u.email,
+          phone: u.phone_number,
+          ticket: u.ticket_type,
+          status: u.payment_status,
+          regId: u.registration_id,
+          utr: u.utr || '-'
+        });
+      });
+
+      if (u.emergency_contact_name && u.emergency_contact_name.includes('Attendees:')) {
+        const extraNames = u.emergency_contact_name
+          .replace('Attendees:', '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+
+        extraNames.forEach((extName) => {
+          attendeeList.push({
+            sl: sl++,
+            club: clubNorm,
+            rawClub,
+            name: extName,
+            type: 'Additional Attendee',
+            registeredBy: u.full_name,
+            email: u.email,
+            phone: u.phone_number,
+            ticket: u.ticket_type,
+            status: u.payment_status,
+            regId: u.registration_id,
+            utr: u.utr || '-'
+          });
+        });
+      }
+    });
+
+    // Sheet 1: Individual Attendees Roster
+    let sheet1Xml = `<Worksheet ss:Name="All Rotaract Attendees"><Table>`;
+    const s1Headers = [
+      'Sl No', 'Rotaract Club Name', 'Registered Club Affiliation', 'Attendee Name',
+      'Attendee Type', 'Registered By', 'Email Address', 'Phone Number',
+      'Ticket Pass', 'Payment Status', 'Registration ID', 'UTR / Ref'
+    ];
+    sheet1Xml += '<Row>';
+    s1Headers.forEach((h) => {
+      sheet1Xml += `<Cell ss:StyleID="RotaractHeader"><Data ss:Type="String">${escapeXml(h)}</Data></Cell>`;
+    });
+    sheet1Xml += '</Row>';
+
+    attendeeList.forEach((att) => {
+      sheet1Xml += '<Row>';
+      [
+        att.sl,
+        att.club,
+        att.rawClub,
+        att.name,
+        att.type,
+        att.registeredBy,
+        att.email,
+        att.phone,
+        att.ticket,
+        att.status,
+        att.regId,
+        att.utr
+      ].forEach((val) => {
+        sheet1Xml += `<Cell><Data ss:Type="String">${escapeXml(val)}</Data></Cell>`;
+      });
+      sheet1Xml += '</Row>';
+    });
+    sheet1Xml += '</Table></Worksheet>';
+
+    // Sheet 2: Primary Registrations
+    let sheet2Xml = `<Worksheet ss:Name="Primary Registrations"><Table>`;
+    const s2Headers = [
+      'Registration ID', 'Registrant Name', 'Rotaract Club', 'Original Affiliation Input',
+      'Email', 'Phone', 'Ticket Pass', 'Allowed Entries', 'Used Entries',
+      'Additional Attendee Names', 'Payment Status', 'UTR / Ref'
+    ];
+    sheet2Xml += '<Row>';
+    s2Headers.forEach((h) => {
+      sheet2Xml += `<Cell ss:StyleID="RotaractHeader"><Data ss:Type="String">${escapeXml(h)}</Data></Cell>`;
+    });
+    sheet2Xml += '</Row>';
+
+    rotaractUsers.forEach((u) => {
+      sheet2Xml += '<Row>';
+      const additional = u.emergency_contact_name && u.emergency_contact_name.includes('Attendees:')
+        ? u.emergency_contact_name.replace('Attendees:', '').trim()
+        : '-';
+      [
+        u.registration_id,
+        u.full_name,
+        getRotaractClubCategory(u),
+        u.club_affiliation || 'None',
+        u.email,
+        u.phone_number,
+        u.ticket_type,
+        u.allowed_entries,
+        u.used_entries,
+        additional,
+        u.payment_status,
+        u.utr || '-'
+      ].forEach((val) => {
+        sheet2Xml += `<Cell><Data ss:Type="String">${escapeXml(val)}</Data></Cell>`;
+      });
+      sheet2Xml += '</Row>';
+    });
+    sheet2Xml += '</Table></Worksheet>';
+
+    // Sheet 3: Club Breakdown Summary
+    let sheet3Xml = `<Worksheet ss:Name="Club Breakdown Summary"><Table>`;
+    const s3Headers = [
+      'Sl No', 'Rotaract Club Name', 'Total Primary Registrations', 'Total Attendees Count'
+    ];
+    sheet3Xml += '<Row>';
+    s3Headers.forEach((h) => {
+      sheet3Xml += `<Cell ss:StyleID="RotaractHeader"><Data ss:Type="String">${escapeXml(h)}</Data></Cell>`;
+    });
+    sheet3Xml += '</Row>';
+
+    rotaractClubOptions.forEach(([clubName, regCount], idx) => {
+      const attendeesInClub = attendeeList.filter((a) => a.club === clubName).length;
+      sheet3Xml += '<Row>';
+      [idx + 1, clubName, regCount, attendeesInClub].forEach((val) => {
+        sheet3Xml += `<Cell><Data ss:Type="String">${escapeXml(val)}</Data></Cell>`;
+      });
+      sheet3Xml += '</Row>';
+    });
+
+    // Total Row
+    sheet3Xml += '<Row>';
+    ['TOTAL', 'All Rotaract Clubs', rotaractUsers.length, attendeeList.length].forEach((val) => {
+      sheet3Xml += `<Cell ss:StyleID="RotaractHeader"><Data ss:Type="String">${escapeXml(val)}</Data></Cell>`;
+    });
+    sheet3Xml += '</Row>';
+    sheet3Xml += '</Table></Worksheet>';
+
+    const workbookXml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Styles>
+  <Style ss:ID="RotaractHeader">
+   <Font ss:Bold="1" ss:Color="#FFFFFF"/>
+   <Interior ss:Color="#BE185D" ss:Pattern="Solid"/>
+  </Style>
+ </Styles>
+${sheet1Xml}
+${sheet2Xml}
+${sheet3Xml}
+</Workbook>`;
+
+    const blob = new Blob([workbookXml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Rotaract_Club_Registrations_${new Date().toISOString().split('T')[0]}.xls`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // ====================================
+  // EXPORT ALL TICKET HOLDERS (PRIMARY + ALL GROUP ATTENDEES EXPANDED)
+  // ====================================
+  const exportAllTicketHoldersCSV = () => {
+    const headers = [
+      'Sl No',
+      'Ticket Holder Name',
+      'Attendee Role',
+      'Registered By',
+      'Email Address',
+      'Phone Number',
+      'Ticket Pass Type',
+      'Club / Affiliation',
+      'Payment Status',
+      'Registration ID',
+      'Allowed Entries',
+      'Scanned Entries',
+      'UTR / UPI Ref'
+    ];
+
+    type HolderRow = {
+      sl: number;
+      name: string;
+      role: string;
+      registeredBy: string;
+      email: string;
+      phone: string;
+      ticket: string;
+      affiliation: string;
+      status: string;
+      regId: number;
+      allowed: number;
+      used: number;
+      utr: string;
+    };
+
+    const holders: HolderRow[] = [];
+    let sl = 1;
+
+    const sortedUsers = [...users].sort((a, b) => Number(a.registration_id) - Number(b.registration_id));
+
+    sortedUsers.forEach((u) => {
+      const primaryNames = (u.full_name || '').split(',').map((s) => s.trim()).filter(Boolean);
+      const names = primaryNames.length > 0 ? primaryNames : [u.full_name || 'N/A'];
+
+      names.forEach((pName) => {
+        holders.push({
+          sl: sl++,
+          name: pName,
+          role: 'Primary Registrant',
+          registeredBy: u.full_name,
+          email: u.email,
+          phone: u.phone_number,
+          ticket: u.ticket_type,
+          affiliation: u.club_affiliation || 'Public',
+          status: u.payment_status,
+          regId: u.registration_id,
+          allowed: u.allowed_entries,
+          used: u.used_entries,
+          utr: u.utr || '-'
+        });
+      });
+
+      if (u.emergency_contact_name && u.emergency_contact_name.includes('Attendees:')) {
+        const extraNames = u.emergency_contact_name
+          .replace('Attendees:', '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+
+        extraNames.forEach((extName) => {
+          holders.push({
+            sl: sl++,
+            name: extName,
+            role: 'Additional Ticket Holder',
+            registeredBy: u.full_name,
+            email: u.email,
+            phone: u.phone_number,
+            ticket: u.ticket_type,
+            affiliation: u.club_affiliation || 'Public',
+            status: u.payment_status,
+            regId: u.registration_id,
+            allowed: u.allowed_entries,
+            used: u.used_entries,
+            utr: u.utr || '-'
+          });
+        });
+      }
+    });
+
+    const rows = holders.map((h) => [
+      h.sl,
+      h.name,
+      h.role,
+      h.registeredBy,
+      h.email,
+      h.phone,
+      h.ticket,
+      h.affiliation,
+      h.status,
+      h.regId,
+      h.allowed,
+      h.used,
+      h.utr
+    ]);
+
+    // UTF-8 BOM \uFEFF so Excel opens cleanly without garbled characters
+    const csvContent =
+      '\uFEFF' +
+      [headers, ...rows]
+        .map((e) => e.map((val) => `"${String(val ?? '').replace(/"/g, '""')}"`).join(','))
+        .join('\r\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `All_Ticket_Holders_List_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportAllTicketHoldersExcel = () => {
+    const escapeXml = (str: any) => {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+    };
+
+    const headers = [
+      'Sl No',
+      'Ticket Holder Name',
+      'Attendee Role',
+      'Registered By',
+      'Email Address',
+      'Phone Number',
+      'Ticket Pass Type',
+      'Club / Affiliation',
+      'Payment Status',
+      'Registration ID',
+      'Allowed Entries',
+      'Scanned Entries',
+      'UTR / UPI Ref'
+    ];
+
+    let sl = 1;
+    const sortedUsers = [...users].sort((a, b) => Number(a.registration_id) - Number(b.registration_id));
+
+    let sheetXml = `<Worksheet ss:Name="All Ticket Holders"><Table>`;
+    sheetXml += '<Row>';
+    headers.forEach((h) => {
+      sheetXml += `<Cell ss:StyleID="HoldersHeader"><Data ss:Type="String">${escapeXml(h)}</Data></Cell>`;
+    });
+    sheetXml += '</Row>';
+
+    sortedUsers.forEach((u) => {
+      const primaryNames = (u.full_name || '').split(',').map((s) => s.trim()).filter(Boolean);
+      const names = primaryNames.length > 0 ? primaryNames : [u.full_name || 'N/A'];
+
+      names.forEach((pName) => {
+        sheetXml += '<Row>';
+        [
+          sl++,
+          pName,
+          'Primary Registrant',
+          u.full_name,
+          u.email,
+          u.phone_number,
+          u.ticket_type,
+          u.club_affiliation || 'Public',
+          u.payment_status,
+          u.registration_id,
+          u.allowed_entries,
+          u.used_entries,
+          u.utr || '-'
+        ].forEach((val) => {
+          sheetXml += `<Cell><Data ss:Type="String">${escapeXml(val)}</Data></Cell>`;
+        });
+        sheetXml += '</Row>';
+      });
+
+      if (u.emergency_contact_name && u.emergency_contact_name.includes('Attendees:')) {
+        const extraNames = u.emergency_contact_name
+          .replace('Attendees:', '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+
+        extraNames.forEach((extName) => {
+          sheetXml += '<Row>';
+          [
+            sl++,
+            extName,
+            'Additional Ticket Holder',
+            u.full_name,
+            u.email,
+            u.phone_number,
+            u.ticket_type,
+            u.club_affiliation || 'Public',
+            u.payment_status,
+            u.registration_id,
+            u.allowed_entries,
+            u.used_entries,
+            u.utr || '-'
+          ].forEach((val) => {
+            sheetXml += `<Cell><Data ss:Type="String">${escapeXml(val)}</Data></Cell>`;
+          });
+          sheetXml += '</Row>';
+        });
+      }
+    });
+
+    sheetXml += '</Table></Worksheet>';
+
+    const workbookXml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Styles>
+  <Style ss:ID="HoldersHeader">
+   <Font ss:Bold="1" ss:Color="#FFFFFF"/>
+   <Interior ss:Color="#047857" ss:Pattern="Solid"/>
+  </Style>
+ </Styles>
+${sheetXml}
+</Workbook>`;
+
+    const blob = new Blob([workbookXml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `All_Ticket_Holders_List_${new Date().toISOString().split('T')[0]}.xls`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const exportCSV = () => {
@@ -426,6 +919,7 @@ export default function AdminPage({
 
   const [statusFilter, setStatusFilter] = useState<StatusFilterType>('all');
   const [slabFilter, setSlabFilter] = useState<string>('all');
+  const [rotaractFilter, setRotaractFilter] = useState<string>('all');
   const [mounted, setMounted] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [adminRole, setAdminRole] = useState<'admin' | 'viewer'>('admin');
@@ -1052,6 +1546,35 @@ export default function AdminPage({
     }).length;
   }, [users]);
 
+  const countRotaract = useMemo(() => {
+    return users.filter(isRotaractUser).length;
+  }, [users]);
+
+  const countRotaractApproved = useMemo(() => {
+    return users.filter((u) => isRotaractUser(u) && u.payment_status === 'approved').length;
+  }, [users]);
+
+  const countRotaractPending = useMemo(() => {
+    return users.filter((u) => isRotaractUser(u) && u.payment_status === 'pending').length;
+  }, [users]);
+
+  const totalRotaractEntries = useMemo(() => {
+    return users
+      .filter((u) => isRotaractUser(u) && u.payment_status !== 'rejected' && u.payment_status !== 'draft')
+      .reduce((sum, u) => sum + (Number(u.allowed_entries) || 1), 0);
+  }, [users]);
+
+  const rotaractClubOptions = useMemo(() => {
+    const clubCounts: { [club: string]: number } = {};
+    users.forEach((u) => {
+      if (isRotaractUser(u)) {
+        const cat = getRotaractClubCategory(u);
+        clubCounts[cat] = (clubCounts[cat] || 0) + 1;
+      }
+    });
+    return Object.entries(clubCounts).sort((a, b) => b[1] - a[1]);
+  }, [users]);
+
   // ====================================
   // SEARCH & CATEGORY FILTER WITH BIB SORT
   // ====================================
@@ -1066,7 +1589,8 @@ export default function AdminPage({
           user.email?.toLowerCase().includes(query) ||
           user.phone_number?.includes(query) ||
           (user.utr && user.utr.toLowerCase().includes(query)) ||
-          (user.bib_number && String(user.bib_number).includes(query));
+          (user.bib_number && String(user.bib_number).includes(query)) ||
+          (user.club_affiliation && user.club_affiliation.toLowerCase().includes(query));
 
         if (!matchesSearch) return false;
 
@@ -1097,6 +1621,15 @@ export default function AdminPage({
         if (slabFilter === 'slab2' && userSlab !== 'slab2') return false;
         if (slabFilter === 'slab3' && userSlab !== 'slab3') return false;
 
+        // Rotaract Club filter dropdown
+        if (rotaractFilter === 'rotaract_all') {
+          if (!isRotaractUser(user)) return false;
+        } else if (rotaractFilter === 'non_rotaract') {
+          if (isRotaractUser(user)) return false;
+        } else if (rotaractFilter !== 'all') {
+          if (getRotaractClubCategory(user) !== rotaractFilter) return false;
+        }
+
         return true;
       })
       .sort((a, b) => {
@@ -1108,7 +1641,7 @@ export default function AdminPage({
         }
         return b.registration_id - a.registration_id;
       });
-  }, [users, search, statusFilter, slabFilter, sortedAscUsers]);
+  }, [users, search, statusFilter, slabFilter, rotaractFilter, sortedAscUsers]);
 
   if (!mounted || !isAuthorized) {
     return (
@@ -1163,11 +1696,39 @@ export default function AdminPage({
               </button>
 
               <button
-                onClick={exportExcel}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2 shadow-lg"
+                onClick={exportAllTicketHoldersCSV}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2 shadow-lg cursor-pointer"
+                title="Download all registered users with all individual ticket holder names as CSV (Opens in Excel)"
+              >
+                <Download size={16} />
+                <span>All Ticket Holders (CSV)</span>
+              </button>
+
+              <button
+                onClick={exportAllTicketHoldersExcel}
+                className="bg-teal-700 hover:bg-teal-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2 shadow-lg cursor-pointer"
+                title="Download all registered users with all ticket holder names as Excel"
               >
                 <FileSpreadsheet size={16} />
-                <span>Excel (.xls)</span>
+                <span>All Ticket Holders (Excel)</span>
+              </button>
+
+              <button
+                onClick={exportExcel}
+                className="bg-zinc-800 hover:bg-zinc-700 text-gray-200 px-3.5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2 border border-zinc-700 cursor-pointer"
+                title="Export Master Multi-Sheet Workbook"
+              >
+                <FileSpreadsheet size={15} />
+                <span>Master Excel</span>
+              </button>
+
+              <button
+                onClick={exportRotaractExcel}
+                className="bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2 shadow-lg cursor-pointer"
+                title="Download Rotaract Multi-Sheet Excel File"
+              >
+                <FileSpreadsheet size={16} />
+                <span>Rotaract Excel</span>
               </button>
 
               <button
@@ -1389,9 +1950,9 @@ export default function AdminPage({
 
       {/* SEARCH AND DROPDOWN FILTERS TOOLBAR */}
       <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-4 mb-6 shadow-xl backdrop-blur-xl">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-center">
           {/* SEARCH BAR */}
-          <div className="md:col-span-6 relative">
+          <div className="sm:col-span-2 lg:col-span-4 relative">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
@@ -1411,7 +1972,7 @@ export default function AdminPage({
           </div>
 
           {/* DROPDOWN 1: REGISTRATION STATUS */}
-          <div className="md:col-span-3">
+          <div className="lg:col-span-3">
             <div className="relative">
               <select
                 value={statusFilter}
@@ -1432,7 +1993,7 @@ export default function AdminPage({
           </div>
 
           {/* DROPDOWN 2: DANDIYA PRICING SLABS */}
-          <div className="md:col-span-3">
+          <div className="lg:col-span-2">
             <div className="relative">
               <select
                 value={slabFilter}
@@ -1447,6 +2008,33 @@ export default function AdminPage({
                 <option value="slab3">🔥 Last Chance ({countSlab3})</option>
               </select>
               <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-cyan-400 pointer-events-none" size={16} />
+            </div>
+          </div>
+
+          {/* DROPDOWN 3: ROTARACT CLUBS */}
+          <div className="lg:col-span-3">
+            <div className="relative">
+              <select
+                value={rotaractFilter}
+                onChange={(e) => setRotaractFilter(e.target.value)}
+                className={`w-full p-2.5 rounded-xl bg-zinc-950/80 border text-xs sm:text-sm font-bold focus:outline-none appearance-none cursor-pointer pr-8 transition ${
+                  rotaractFilter !== 'all'
+                    ? 'border-rose-400 text-rose-300 ring-1 ring-rose-400'
+                    : 'border-zinc-800 text-rose-300 focus:border-rose-400'
+                }`}
+              >
+                <option value="all">🏛️ All Clubs / Affiliations ({users.length})</option>
+                <option value="rotaract_all">⭐ All Rotaract Clubs ({countRotaract})</option>
+                <optgroup label="Registered Rotaract Clubs">
+                  {rotaractClubOptions.map(([clubName, count]) => (
+                    <option key={clubName} value={clubName}>
+                      {clubName} ({count})
+                    </option>
+                  ))}
+                </optgroup>
+                <option value="non_rotaract">👤 Public / Non-Rotaract</option>
+              </select>
+              <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-rose-400 pointer-events-none" size={16} />
             </div>
           </div>
         </div>
@@ -1549,6 +2137,20 @@ export default function AdminPage({
           <span>📧 Email Directory</span>
           <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-violet-500/30 text-violet-200 font-bold">{uniqueEmailCount}</span>
         </button>
+
+        <button
+          onClick={() => {
+            setRotaractFilter(rotaractFilter === 'rotaract_all' ? 'all' : 'rotaract_all');
+          }}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 cursor-pointer ${
+            rotaractFilter !== 'all'
+              ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-lg font-black ring-2 ring-rose-400'
+              : 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30'
+          }`}
+        >
+          <span>🏛️ Rotaract Clubs</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-rose-500/30 text-rose-200 font-bold">{countRotaract}</span>
+        </button>
       </div>
 
       {/* ACTIVE MEGA SALE FILTER BANNER */}
@@ -1575,6 +2177,44 @@ export default function AdminPage({
             <button
               onClick={() => setStatusFilter('all')}
               className="text-xs font-bold px-3 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-gray-300 border border-zinc-700 transition cursor-pointer"
+            >
+              Clear Filter
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ACTIVE ROTARACT FILTER BANNER */}
+      {rotaractFilter !== 'all' && (
+        <div className="mb-6 bg-gradient-to-r from-rose-500/20 via-pink-500/20 to-purple-500/20 border border-rose-500/50 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-lg backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🏛️</span>
+            <div>
+              <h3 className="text-base font-black text-rose-300">
+                {rotaractFilter === 'rotaract_all'
+                  ? `All Rotaract Clubs Combined (${filteredUsers.length} Registrations • ${filteredUsers.reduce((acc, u) => acc + (Number(u.allowed_entries) || 1), 0)} Passes)`
+                  : rotaractFilter === 'non_rotaract'
+                  ? `Public / Non-Rotaract Registrations (${filteredUsers.length} Registrations)`
+                  : `${rotaractFilter} (${filteredUsers.length} Registrations)`}
+              </h3>
+              <p className="text-xs text-gray-300">
+                Showing all registrations matching the selected Rotaract club filter.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {!isViewer && (
+              <button
+                onClick={exportRotaractExcel}
+                className="text-xs font-bold px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white shadow transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <Download size={13} />
+                <span>Export Rotaract Excel (.xls)</span>
+              </button>
+            )}
+            <button
+              onClick={() => setRotaractFilter('all')}
+              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-gray-300 border border-zinc-700 transition cursor-pointer"
             >
               Clear Filter
             </button>
@@ -1842,9 +2482,23 @@ export default function AdminPage({
 
                       {/* AFFILIATION */}
                       <td className="p-4 whitespace-nowrap">
-                        <span className="text-gray-300 text-xs font-medium">
-                          {user.club_affiliation || 'Public'}
-                        </span>
+                        {isRotaractUser(user) ? (
+                          <div className="flex flex-col gap-0.5 items-start">
+                            <span className="bg-rose-500/15 text-rose-300 border border-rose-500/30 px-2.5 py-0.5 rounded-md text-xs font-bold flex items-center gap-1 shadow-sm">
+                              <span>🏛️</span>
+                              <span>{getRotaractClubCategory(user)}</span>
+                            </span>
+                            {user.club_affiliation && user.club_affiliation !== getRotaractClubCategory(user) && (
+                              <span className="text-[10px] text-gray-400 pl-1 font-mono italic">
+                                Input: {user.club_affiliation}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs font-medium">
+                            {user.club_affiliation || 'Public'}
+                          </span>
+                        )}
                       </td>
 
                       {/* UTR */}
