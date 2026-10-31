@@ -175,7 +175,7 @@ export default function MyTicketPage() {
       ['Ticket:', `${ticket.ticket_type || ''} (${ticket.allowed_entries || 1} members)`],
       ['Venue:', ticket.venue || 'N/A'],
       ['Location:', (ticket.venue_map_url || 'https://share.google/SmVDY2TbdA9RRCQwO').replace('https://', '')],
-      ['Date & Time:', ticket.event_date ? `${new Date(ticket.event_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' })} • ${new Date(ticket.event_date).toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true })} IST` : '31 Oct 2026 • 4:00 PM IST']
+      ['Date & Time:', ticket.event_date ? `${new Date(ticket.event_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' })} • ${new Date(ticket.event_date).toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true })} IST` : '31 Oct 2026 • 4:30 PM IST']
     ];
 
     details.forEach(([label, val]) => {
@@ -620,7 +620,7 @@ export default function MyTicketPage() {
                               IST
                             </>
                           ) : (
-                            '31 Oct 2026 at 4:00 PM IST'
+                            '31 Oct 2026 at 4:30 PM IST'
                           )}
                         </p>
                       </div>
