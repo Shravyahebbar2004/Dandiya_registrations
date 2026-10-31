@@ -481,107 +481,50 @@ ${sheet3Xml}
   // ====================================
   // EXPORT ALL TICKET HOLDERS (PRIMARY + ALL GROUP ATTENDEES EXPANDED)
   // ====================================
+  const parseOtherParticipants = (raw?: string) => {
+    if (!raw) return '-';
+    const cleaned = raw.replace(/^(Attendees|Group Members|Other Holders|Guests):\s*/i, '').trim();
+    if (!cleaned) return '-';
+    const names = cleaned.split(/[,;\n]+/).map((s) => s.trim()).filter(Boolean);
+    return names.length > 0 ? names.join(', ') : '-';
+  };
+
   const exportAllTicketHoldersCSV = () => {
     const headers = [
       'Sl No',
-      'Ticket Holder Name',
-      'Attendee Role',
-      'Registered By',
-      'Email Address',
+      'Registered Name',
+      'Other Participants',
+      'Email ID',
+      'Ticket Status',
       'Phone Number',
       'Ticket Pass Type',
+      'Total Tickets (Allowed)',
+      'Amount Paid (₹)',
       'Club / Affiliation',
-      'Payment Status',
-      'Registration ID',
-      'Allowed Entries',
       'Scanned Entries',
-      'UTR / UPI Ref'
+      'UTR / UPI Ref',
+      'Registration ID',
+      'Registration Date'
     ];
 
-    type HolderRow = {
-      sl: number;
-      name: string;
-      role: string;
-      registeredBy: string;
-      email: string;
-      phone: string;
-      ticket: string;
-      affiliation: string;
-      status: string;
-      regId: number;
-      allowed: number;
-      used: number;
-      utr: string;
-    };
-
-    const holders: HolderRow[] = [];
     let sl = 1;
-
     const sortedUsers = [...users].sort((a, b) => Number(a.registration_id) - Number(b.registration_id));
 
-    sortedUsers.forEach((u) => {
-      const primaryNames = (u.full_name || '').split(',').map((s) => s.trim()).filter(Boolean);
-      const names = primaryNames.length > 0 ? primaryNames : [u.full_name || 'N/A'];
-
-      names.forEach((pName) => {
-        holders.push({
-          sl: sl++,
-          name: pName,
-          role: 'Primary Registrant',
-          registeredBy: u.full_name,
-          email: u.email,
-          phone: u.phone_number,
-          ticket: u.ticket_type,
-          affiliation: u.club_affiliation || 'Public',
-          status: u.payment_status,
-          regId: u.registration_id,
-          allowed: u.allowed_entries,
-          used: u.used_entries,
-          utr: u.utr || '-'
-        });
-      });
-
-      if (u.emergency_contact_name && u.emergency_contact_name.includes('Attendees:')) {
-        const extraNames = u.emergency_contact_name
-          .replace('Attendees:', '')
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean);
-
-        extraNames.forEach((extName) => {
-          holders.push({
-            sl: sl++,
-            name: extName,
-            role: 'Additional Ticket Holder',
-            registeredBy: u.full_name,
-            email: u.email,
-            phone: u.phone_number,
-            ticket: u.ticket_type,
-            affiliation: u.club_affiliation || 'Public',
-            status: u.payment_status,
-            regId: u.registration_id,
-            allowed: u.allowed_entries,
-            used: u.used_entries,
-            utr: u.utr || '-'
-          });
-        });
-      }
-    });
-
-    const rows = holders.map((h) => [
-      h.sl,
-      h.name,
-      h.role,
-      h.registeredBy,
-      h.email,
-      h.phone,
-      h.ticket,
-      h.affiliation,
-      h.status,
-      h.regId,
-      h.allowed,
-      h.used,
-      h.utr
+    const rows = sortedUsers.map((u) => [
+      sl++,
+      u.full_name || 'N/A',
+      parseOtherParticipants(u.emergency_contact_name),
+      (u.email || '').trim().toLowerCase(),
+      (u.payment_status || '').toUpperCase(),
+      u.phone_number || '-',
+      u.ticket_type || 'Solo',
+      Number(u.allowed_entries) || 1,
+      Number(u.total_amount) || 0,
+      u.club_affiliation || 'Public',
+      `${u.used_entries || 0} / ${u.allowed_entries || 1}`,
+      u.utr || '-',
+      u.registration_id,
+      u.created_at ? new Date(u.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '-'
     ]);
 
     // UTF-8 BOM \uFEFF so Excel opens cleanly without garbled characters
@@ -595,7 +538,7 @@ ${sheet3Xml}
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `All_Ticket_Holders_List_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `All_Participants_Registered_List_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -615,24 +558,25 @@ ${sheet3Xml}
 
     const headers = [
       'Sl No',
-      'Ticket Holder Name',
-      'Attendee Role',
-      'Registered By',
-      'Email Address',
+      'Registered Name',
+      'Other Participants',
+      'Email ID',
+      'Ticket Status',
       'Phone Number',
       'Ticket Pass Type',
+      'Total Tickets (Allowed)',
+      'Amount Paid (₹)',
       'Club / Affiliation',
-      'Payment Status',
-      'Registration ID',
-      'Allowed Entries',
       'Scanned Entries',
-      'UTR / UPI Ref'
+      'UTR / UPI Ref',
+      'Registration ID',
+      'Registration Date'
     ];
 
     let sl = 1;
     const sortedUsers = [...users].sort((a, b) => Number(a.registration_id) - Number(b.registration_id));
 
-    let sheetXml = `<Worksheet ss:Name="All Ticket Holders"><Table>`;
+    let sheetXml = `<Worksheet ss:Name="All Participants"><Table>`;
     sheetXml += '<Row>';
     headers.forEach((h) => {
       sheetXml += `<Cell ss:StyleID="HoldersHeader"><Data ss:Type="String">${escapeXml(h)}</Data></Cell>`;
@@ -640,60 +584,26 @@ ${sheet3Xml}
     sheetXml += '</Row>';
 
     sortedUsers.forEach((u) => {
-      const primaryNames = (u.full_name || '').split(',').map((s) => s.trim()).filter(Boolean);
-      const names = primaryNames.length > 0 ? primaryNames : [u.full_name || 'N/A'];
-
-      names.forEach((pName) => {
-        sheetXml += '<Row>';
-        [
-          sl++,
-          pName,
-          'Primary Registrant',
-          u.full_name,
-          u.email,
-          u.phone_number,
-          u.ticket_type,
-          u.club_affiliation || 'Public',
-          u.payment_status,
-          u.registration_id,
-          u.allowed_entries,
-          u.used_entries,
-          u.utr || '-'
-        ].forEach((val) => {
-          sheetXml += `<Cell><Data ss:Type="String">${escapeXml(val)}</Data></Cell>`;
-        });
-        sheetXml += '</Row>';
+      sheetXml += '<Row>';
+      [
+        sl++,
+        u.full_name || 'N/A',
+        parseOtherParticipants(u.emergency_contact_name),
+        (u.email || '').trim().toLowerCase(),
+        (u.payment_status || '').toUpperCase(),
+        u.phone_number || '-',
+        u.ticket_type || 'Solo',
+        Number(u.allowed_entries) || 1,
+        Number(u.total_amount) || 0,
+        u.club_affiliation || 'Public',
+        `${u.used_entries || 0} / ${u.allowed_entries || 1}`,
+        u.utr || '-',
+        u.registration_id,
+        u.created_at ? new Date(u.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '-'
+      ].forEach((val) => {
+        sheetXml += `<Cell><Data ss:Type="String">${escapeXml(val)}</Data></Cell>`;
       });
-
-      if (u.emergency_contact_name && u.emergency_contact_name.includes('Attendees:')) {
-        const extraNames = u.emergency_contact_name
-          .replace('Attendees:', '')
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean);
-
-        extraNames.forEach((extName) => {
-          sheetXml += '<Row>';
-          [
-            sl++,
-            extName,
-            'Additional Ticket Holder',
-            u.full_name,
-            u.email,
-            u.phone_number,
-            u.ticket_type,
-            u.club_affiliation || 'Public',
-            u.payment_status,
-            u.registration_id,
-            u.allowed_entries,
-            u.used_entries,
-            u.utr || '-'
-          ].forEach((val) => {
-            sheetXml += `<Cell><Data ss:Type="String">${escapeXml(val)}</Data></Cell>`;
-          });
-          sheetXml += '</Row>';
-        });
-      }
+      sheetXml += '</Row>';
     });
 
     sheetXml += '</Table></Worksheet>';
@@ -718,7 +628,7 @@ ${sheetXml}
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `All_Ticket_Holders_List_${new Date().toISOString().split('T')[0]}.xls`);
+    link.setAttribute('download', `All_Participants_Registered_List_${new Date().toISOString().split('T')[0]}.xls`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1698,19 +1608,19 @@ ${sheetXml}
               <button
                 onClick={exportAllTicketHoldersCSV}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2 shadow-lg cursor-pointer"
-                title="Download all registered users with all individual ticket holder names as CSV (Opens in Excel)"
+                title="Download all registered participants with other attendees in adjacent column as CSV"
               >
                 <Download size={16} />
-                <span>All Ticket Holders (CSV)</span>
+                <span>All Participants (CSV)</span>
               </button>
 
               <button
                 onClick={exportAllTicketHoldersExcel}
                 className="bg-teal-700 hover:bg-teal-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center gap-2 shadow-lg cursor-pointer"
-                title="Download all registered users with all ticket holder names as Excel"
+                title="Download all registered participants with other attendees in adjacent column as Excel"
               >
                 <FileSpreadsheet size={16} />
-                <span>All Ticket Holders (Excel)</span>
+                <span>All Participants (Excel)</span>
               </button>
 
               <button
