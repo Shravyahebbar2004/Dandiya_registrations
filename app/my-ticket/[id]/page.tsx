@@ -175,7 +175,7 @@ export default function MyTicketPage() {
       ['Ticket:', `${ticket.ticket_type || ''} (${ticket.allowed_entries || 1} members)`],
       ['Venue:', ticket.venue || 'N/A'],
       ['Location:', (ticket.venue_map_url || 'https://share.google/SmVDY2TbdA9RRCQwO').replace('https://', '')],
-      ['Date & Time:', ticket.event_date ? `${new Date(ticket.event_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' })} • ${new Date(ticket.event_date).toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true })} IST` : 'N/A']
+      ['Date & Time:', ticket.event_date ? `${new Date(ticket.event_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' })} • ${new Date(ticket.event_date).toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true })} IST` : '31 Oct 2026 • 4:00 PM IST']
     ];
 
     details.forEach(([label, val]) => {
@@ -602,20 +602,26 @@ export default function MyTicketPage() {
                         </div>
                         <p className="text-white text-lg">
                           <span className="text-amber-300 font-bold">Date & Time:</span>{' '}
-                          {new Date(ticket.event_date).toLocaleDateString('en-IN', {
-                            timeZone: 'Asia/Kolkata',
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric'
-                          })}{' '}
-                          at{' '}
-                          {new Date(ticket.event_date).toLocaleTimeString('en-US', {
-                            timeZone: 'Asia/Kolkata',
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            hour12: true
-                          })}{' '}
-                          IST
+                          {ticket.event_date ? (
+                            <>
+                              {new Date(ticket.event_date).toLocaleDateString('en-IN', {
+                                timeZone: 'Asia/Kolkata',
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric'
+                              })}{' '}
+                              at{' '}
+                              {new Date(ticket.event_date).toLocaleTimeString('en-US', {
+                                timeZone: 'Asia/Kolkata',
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true
+                              })}{' '}
+                              IST
+                            </>
+                          ) : (
+                            '31 Oct 2026 at 4:00 PM IST'
+                          )}
                         </p>
                       </div>
 
